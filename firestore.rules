@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdminEmail() {
+      return isAuth() && (
+        request.auth.token.email.matches('.*@conceptczech[.]cz') ||
+        request.auth.token.email == 'knobloch.petr@gmail.com' ||
+        request.auth.token.email == 'info@banbosh.cz'
+      );
+    }
+
+    function userExists() {
+      return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isAdminEmail() || (userExists() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    function isApproved() {
+      return isAdminEmail() || (userExists() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true);
+    }
+
+    // --- USERS ---
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.auth.uid == userId;
+      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // --- TASKS ---
+    match /tasks/{taskId} {
+      allow read: if isApproved();
+      allow create: if isAdmin();
+      allow update: if isApproved();
+      allow delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if isApproved();
+        allow create: if isApproved();
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // --- BOARD ---
+    match /board/{postId} {
+      allow read: if isApproved();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if isApproved();
+        allow create: if isApproved();
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // --- CALENDAR ---
+    match /calendar/{eventId} {
+      allow read: if isApproved();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if isApproved();
+        allow create: if isApproved();
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // --- TELEGRAM COMMANDS ---
+    match /telegram_commands/{cmdId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // --- ACTIVITY LOG ---
+    match /activity_log/{logId} {
+      allow read: if isAdmin();
+      allow create: if isApproved();
+      allow update, delete: if false;
+    }
+
+    // --- SETTINGS ---
+    match /settings/{key} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // --- STATS ---
+    match /stats_records/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+    match /stats_uploads/{id} {
+      allow read: if isApproved();
+      allow write: if isApproved();
+      match /records/{rid} {
+        allow read: if isApproved();
+        allow write: if isApproved();
+      }
+    }
+    match /sales_data/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+    match /team_members/{id} {
+      // Čtení povoleno i bez přihlášení — potřeba pro phone lookup při loginu
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- CLIENTS ---
+    match /clients/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // --- EMAIL LOG ---
+    match /email_log/{id} {
+      allow read, write: if isApproved();
+    }
+  }
+}

@@ -24,7 +24,7 @@ const Board = (() => {
     if (unsubscribe) unsubscribe();
 
     unsubscribe = db.collection('board')
-      
+      .orderBy('createdAt', 'desc')
       .onSnapshot(snap => {
         posts = [];
         snap.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));

@@ -1,0 +1,16 @@
+﻿node_modules/
+functions/node_modules/
+.firebase/
+*.log
+.env
+.env.local
+functions/.env
+service-account.json
+serviceAccountKey.json
+functions/service-account.json
+functions/serviceAccountKey.json
+*-service-account.json
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

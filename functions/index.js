@@ -1,0 +1,288 @@
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onRequest } = require('firebase-functions/v2/https');
+const { logger } = require('firebase-functions');
+const admin = require('firebase-admin');
+const https = require('https');
+
+admin.initializeApp();
+const db = admin.firestore();
+
+const BREVO_API_KEY = 'BREVO-KEY-MOVED-TO-FIREBASE-CONFIG';
+const FROM_EMAIL = { name: 'Concept Czech', email: 'podpora@conceptczech.cz' };
+
+const APPROVERS = [
+  { email: 'knobloch.petr@gmail.com', name: 'Petr' },
+  { email: 'steiger@conceptczech.cz', name: 'Kuba' },
+  { email: 'kaisersot@conceptczech.cz', name: 'Honza' }
+];
+
+// ── Helpers ──────────────────────────────────────────────
+function todayDDMM() {
+  const d = new Date();
+  return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildEmailHtml(subject, body, discount, icon) {
+  const bodyHtml = escHtml(body).replace(/\n/g, '<br>');
+  const discountHtml = discount ? (
+    '<div style="margin:28px 0;padding:32px 24px;background:#111111;text-align:center">' +
+      '<div style="font-size:10px;color:#9a8060;text-transform:uppercase;letter-spacing:5px;margin-bottom:14px;font-family:Arial,sans-serif">Váš slevový kód</div>' +
+      '<div style="font-size:42px;font-weight:400;color:#e8c96a;letter-spacing:10px;font-family:Georgia,serif">' + escHtml(discount) + '</div>' +
+      '<div style="margin:16px auto 0;width:60px;height:1px;background:#c9a84c"></div>' +
+      '<div style="font-size:11px;color:#888;margin-top:12px;letter-spacing:2px;font-family:Arial,sans-serif">Platnost 14 dní od doručení</div>' +
+    '</div>' +
+    '<div style="margin:0 0 32px 0;padding:20px 24px;background:#faf8f4;border-top:1px solid #e8dfc8;border-bottom:1px solid #e8dfc8;text-align:center">' +
+      '<div style="font-size:11px;color:#b8912a;margin-bottom:8px;letter-spacing:3px;text-transform:uppercase;font-family:Arial,sans-serif">Jak uplatnit slevu?</div>' +
+      '<div style="font-size:13px;color:#666;line-height:1.8;font-family:Arial,sans-serif">Sleva platí na Vaši příští objednávku.<br>Kontaktujte svého obchodního zástupce a sdělte mu tento kód —<br>rád Vám s objednávkou pomůže.</div>' +
+    '</div>'
+  ) : '';
+
+  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>:root{color-scheme:light only}body{margin:0;padding:0;background:#f5f0e8 !important}.wrapper{background:#f5f0e8 !important}.card{background:#ffffff !important}.header{background:#111111 !important}.footer{background:#111111 !important}.body-cell{background:#ffffff !important}.cta-cell{background:#ffffff !important}@media(max-width:600px){.card{width:100% !important;border-radius:0 !important}.body-cell{padding:32px 24px 20px !important}.cta-cell{padding:8px 24px 28px !important}}</style></head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,'Times New Roman',serif">
+<table width="100%" cellpadding="0" cellspacing="0" class="wrapper" style="background:#f5f0e8;padding:40px 0"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,0.15)">
+<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
+<tr><td class="header" style="background:#111111;padding:44px 40px 36px;text-align:center">
+  <div style="font-size:10px;color:#9a8060;letter-spacing:6px;text-transform:uppercase;margin-bottom:14px;font-family:Arial,sans-serif">Jsme továrna na sny pro vaše vlasy</div>
+  <div style="font-size:38px;font-weight:400;color:#e8c96a;letter-spacing:8px;text-transform:uppercase;font-family:Georgia,serif">Concept Czech</div>
+  <div style="font-size:10px;color:#666;margin-top:8px;letter-spacing:4px;font-family:Arial,sans-serif">S.R.O.</div>
+  <div style="margin-top:24px;height:1px;background:linear-gradient(90deg,transparent,#c9a84c,transparent)"></div>
+</td></tr>
+<tr><td class="header" style="background:#111111;padding:20px 40px 32px;text-align:center">
+  <div style="font-size:56px;line-height:1">${icon}</div>
+</td></tr>
+<tr><td class="body-cell" style="padding:48px 48px 32px;text-align:center;background:#ffffff">
+  <div style="height:1px;background:linear-gradient(90deg,transparent,#d4af5a,transparent);margin-bottom:36px"></div>
+  <h1 style="font-size:22px;color:#1a1a1a;margin:0 0 24px 0;font-weight:400;text-align:center;letter-spacing:3px;text-transform:uppercase;font-family:Georgia,serif">${escHtml(subject)}</h1>
+  <div style="font-size:15px;line-height:2;color:#444;margin-bottom:32px;text-align:center;font-family:Arial,sans-serif">${bodyHtml}</div>
+  ${discountHtml}
+</td></tr>
+<tr><td class="cta-cell" style="padding:8px 48px 40px;text-align:center;background:#ffffff">
+  <a href="https://www.conceptczech.cz" style="display:inline-block;background:#111111;color:#e8c96a;text-decoration:none;font-size:12px;padding:16px 40px;letter-spacing:4px;text-transform:uppercase;font-family:Arial,sans-serif">Navštívit náš web</a>
+</td></tr>
+<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
+<tr><td class="footer" style="background:#111111;padding:28px 40px;text-align:center">
+  <div style="font-size:11px;color:#c9a84c;margin-bottom:8px;letter-spacing:4px;text-transform:uppercase;font-family:Arial,sans-serif">Concept Czech s.r.o.</div>
+  <div style="font-size:11px;color:#555;line-height:2;font-family:Arial,sans-serif">
+    podpora@conceptczech.cz<br>
+    <a href="https://www.conceptczech.cz" style="color:#9a8060;text-decoration:none;letter-spacing:2px">www.conceptczech.cz</a>
+  </div>
+</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+function sendBrevoEmail(to, toName, subject, htmlContent) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      sender: FROM_EMAIL,
+      replyTo: FROM_EMAIL,
+      to: [{ email: to, name: toName }],
+      subject,
+      htmlContent
+    });
+    const req = https.request({
+      hostname: 'api.brevo.com',
+      path: '/v3/smtp/email',
+      method: 'POST',
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+// ── Schvalovací email pro management ────────────────────
+function buildApprovalEmail(pendingId, birthday, nameday, baseUrl) {
+  const approveUrl = `${baseUrl}/approveCelebrants?id=${pendingId}`;
+
+  let rows = '';
+  birthday.forEach(c => {
+    rows += `<tr>
+      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px">${escHtml(c.name)}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center">🎂 Narozeniny</td>
+      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center;color:#b8912a;font-weight:700">BDAY10 (10%)</td>
+    </tr>`;
+  });
+  nameday.forEach(c => {
+    rows += `<tr>
+      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px">${escHtml(c.name)}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center">🌸 Svátek</td>
+      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center;color:#b8912a;font-weight:700">SVATEK5 (5%)</td>
+    </tr>`;
+  });
+
+  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><style>body{margin:0;padding:0;background:#f5f0e8;font-family:Arial,sans-serif}</style></head>
+<body style="margin:0;padding:0;background:#f5f0e8">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:40px 0"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,0.15)">
+<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
+<tr><td style="background:#111111;padding:36px 40px;text-align:center">
+  <div style="font-size:10px;color:#9a8060;letter-spacing:6px;text-transform:uppercase;margin-bottom:10px">Interní notifikace</div>
+  <div style="font-size:32px;font-weight:400;color:#e8c96a;letter-spacing:6px;text-transform:uppercase;font-family:Georgia,serif">Concept Czech</div>
+  <div style="margin-top:20px;height:1px;background:linear-gradient(90deg,transparent,#c9a84c,transparent)"></div>
+</td></tr>
+<tr><td style="padding:40px 40px 32px;background:#ffffff">
+  <h1 style="font-size:20px;color:#111111;font-weight:700;margin:0 0 8px 0;text-align:center">Dnešní oslavenci — ke schválení</h1>
+  <p style="font-size:14px;color:#666;text-align:center;margin:0 0 28px 0">Zkontrolujte seznam a klikněte na tlačítko pro odeslání blahopřání.</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8dfc8;border-radius:8px;overflow:hidden;margin-bottom:32px">
+    <thead>
+      <tr style="background:#f5f0e8">
+        <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px">Salon</th>
+        <th style="padding:10px 16px;text-align:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px">Typ</th>
+        <th style="padding:10px 16px;text-align:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px">Sleva</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="text-align:center">
+    <a href="${approveUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c,#f0c040);color:#111111;text-decoration:none;font-size:13px;font-weight:800;padding:18px 48px;border-radius:6px;letter-spacing:3px;text-transform:uppercase">✓ Schválit a odeslat emaily</a>
+  </div>
+  <p style="font-size:12px;color:#aaa;text-align:center;margin:20px 0 0 0">Stačí kliknout jednou — klidně kdokoliv z vás.</p>
+</td></tr>
+<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
+<tr><td style="background:#111111;padding:20px 40px;text-align:center">
+  <div style="font-size:11px;color:#555;line-height:2">podpora@conceptczech.cz &nbsp;|&nbsp; <a href="https://www.conceptczech.cz" style="color:#9a8060;text-decoration:none">www.conceptczech.cz</a></div>
+</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+// ── Scheduled: každý den v 7:00 ────────────────────────
+exports.dailyCelebrantsEmail = onSchedule({
+  schedule: '0 7 * * *',
+  timeZone: 'Europe/Prague',
+  region: 'europe-west1',
+}, async (event) => {
+  const today = todayDDMM();
+  logger.info(`Checking celebrants for ${today}`);
+
+  const snap = await db.collection('clients').get();
+  const birthday = [], nameday = [];
+
+  snap.forEach(doc => {
+    const c = { id: doc.id, ...doc.data() };
+    if (c.active === false || !c.email) return;
+    if (c.birthday === today) birthday.push(c);
+    if (c.nameday === today) nameday.push(c);
+  });
+
+  if (!birthday.length && !nameday.length) {
+    logger.info('No celebrants today.');
+    return;
+  }
+
+  // Ulož pending batch do Firestore
+  const pendingRef = await db.collection('pending_celebrants').add({
+    date: today,
+    birthday: birthday.map(c => ({ id: c.id, name: c.name, email: c.email, contactPerson: c.contactPerson || '' })),
+    nameday: nameday.map(c => ({ id: c.id, name: c.name, email: c.email, contactPerson: c.contactPerson || '' })),
+    approved: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  const baseUrl = 'https://europe-west1-concept-czech-hq.cloudfunctions.net';
+  const approvalHtml = buildApprovalEmail(pendingRef.id, birthday, nameday, baseUrl);
+  const subject = `🎉 Dnešní oslavenci ke schválení (${birthday.length + nameday.length} osob)`;
+
+  // Pošli schvalovací email všem 3
+  for (const approver of APPROVERS) {
+    try {
+      await sendBrevoEmail(approver.email, approver.name, subject, approvalHtml);
+      logger.info(`Approval email sent to ${approver.email}`);
+    } catch (e) {
+      logger.error(`Failed to send approval to ${approver.email}:`, e);
+    }
+  }
+});
+
+// ── HTTP: schválení kliknutím ────────────────────────────
+exports.approveCelebrants = onRequest({
+  region: 'europe-west1',
+}, async (req, res) => {
+  const id = req.query.id;
+  if (!id) {
+    res.status(400).send('Chybí ID.');
+    return;
+  }
+
+  const docRef = db.collection('pending_celebrants').doc(id);
+  const doc = await docRef.get();
+
+  if (!doc.exists) {
+    res.status(404).send('Záznam nenalezen nebo již odeslán.');
+    return;
+  }
+
+  const data = doc.data();
+
+  if (data.approved) {
+    res.status(200).send(`
+      <html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;background:#f5f0e8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+      .box{background:#fff;border-radius:8px;padding:40px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.1);max-width:400px}
+      h2{color:#b8912a}p{color:#666}</style></head>
+      <body><div class="box"><h2>✓ Již odesláno</h2><p>Emaily byly dříve schváleny a odeslány.</p></div></body></html>
+    `);
+    return;
+  }
+
+  // Označ jako schváleno
+  await docRef.update({ approved: true, approvedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+  let sent = 0, errors = 0;
+
+  // Odešli narozeninové emaily
+  for (const c of data.birthday) {
+    const name = c.contactPerson || c.name;
+    const subject = 'Všechno nejlepší k narozeninám!';
+    const body = `Milý/á ${name},\n\npřejeme Vám krásný narozeninový den plný radosti a pohody.\nJako dárek od nás máte 10% slevu navíc na Vaši příští objednávku.`;
+    const html = buildEmailHtml(subject, body, 'BDAY10', '🎂');
+    try {
+      const r = await sendBrevoEmail(c.email, name, subject, html);
+      if (r.status < 300) {
+        sent++;
+        await db.collection('email_log').add({ recipientEmail: c.email, recipientName: c.name, clientId: c.id, type: 'birthday', subject, success: true, sentAt: admin.firestore.FieldValue.serverTimestamp(), sentBy: 'auto-approved' });
+      } else { errors++; }
+    } catch (e) { errors++; logger.error(`Birthday send error ${c.email}:`, e); }
+  }
+
+  // Odešli sváteční emaily
+  for (const c of data.nameday) {
+    const name = c.contactPerson || c.name;
+    const subject = 'Všechno nejlepší ke svátku!';
+    const body = `Milý/á ${name},\n\npřejeme Vám krásný sváteční den plný pohody a radosti.\nJako dárek od nás máte 5% slevu navíc na Vaši příští objednávku.`;
+    const html = buildEmailHtml(subject, body, 'SVATEK5', '🌸');
+    try {
+      const r = await sendBrevoEmail(c.email, name, subject, html);
+      if (r.status < 300) {
+        sent++;
+        await db.collection('email_log').add({ recipientEmail: c.email, recipientName: c.name, clientId: c.id, type: 'nameday', subject, success: true, sentAt: admin.firestore.FieldValue.serverTimestamp(), sentBy: 'auto-approved' });
+      } else { errors++; }
+    } catch (e) { errors++; logger.error(`Nameday send error ${c.email}:`, e); }
+  }
+
+  res.status(200).send(`
+    <html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;background:#f5f0e8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .box{background:#fff;border-radius:8px;padding:48px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.1);max-width:440px}
+    h2{color:#b8912a;font-size:24px;margin-bottom:12px}.count{font-size:48px;font-weight:700;color:#111;margin:16px 0}.label{color:#888;font-size:14px}
+    .err{color:#c62828;font-size:13px;margin-top:8px}</style></head>
+    <body><div class="box">
+      <h2>✓ Emaily odeslány!</h2>
+      <div class="count">${sent}</div>
+      <div class="label">kadeřníků dostalo blahopřání</div>
+      ${errors > 0 ? `<div class="err">${errors} chyb při odesílání</div>` : ''}
+      <p style="color:#666;font-size:13px;margin-top:20px">Vše bylo zaznamenáno v historii emailů.</p>
+    </div></body></html>
+  `);
+});

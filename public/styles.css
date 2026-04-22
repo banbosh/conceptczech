@@ -636,7 +636,7 @@ button, input, select, textarea {
 
 .calendar-cell:hover { background: var(--gray-50); }
 
-.calendar-cell.other-month { opacity: 0.3; }
+.calendar-cell.other-month { opacity: 0.3; pointer-events: none; }
 .calendar-cell.today { outline: 2px solid var(--accent); }
 
 .calendar-day {
@@ -939,29 +939,61 @@ button, input, select, textarea {
   }
 
   .sidebar .nav-item {
+    display: flex;
     flex-direction: row;
+    align-items: center;
     justify-content: flex-start;
-    padding: 12px 20px;
+    padding: 10px 20px;
     gap: 12px;
     min-width: unset;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--gray-700);
+    text-align: left;
+    transition: var(--transition);
+    border-radius: 0;
+    font-family: inherit;
   }
 
-  .sidebar .nav-item svg { margin-bottom: 0; }
+  .sidebar .nav-item:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+  }
+
+  .sidebar .nav-item svg {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
 
   .sidebar .nav-label {
-    font-size: 0.85rem;
+    font-size: 0.875rem;
+    font-weight: 500;
     text-transform: none;
     letter-spacing: 0;
+    white-space: nowrap;
   }
 
   .sidebar .nav-item.active {
     background: rgba(26, 35, 126, 0.08);
     border-right: 3px solid var(--primary);
+    color: var(--primary);
+    font-weight: 600;
   }
 
   .sidebar .nav-badge {
     position: static;
     margin-left: auto;
+    background: var(--danger);
+    color: white;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    font-weight: 700;
   }
 
   .app-content {
