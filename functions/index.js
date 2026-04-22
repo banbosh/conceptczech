@@ -1,5 +1,6 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { onRequest } = require('firebase-functions/v2/https');
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const https = require('https');
@@ -7,7 +8,7 @@ const https = require('https');
 admin.initializeApp();
 const db = admin.firestore();
 
-const BREVO_API_KEY = 'BREVO-KEY-MOVED-TO-FIREBASE-CONFIG';
+const BREVO_API_KEY = defineSecret('BREVO_API_KEY');
 const FROM_EMAIL = { name: 'Concept Czech', email: 'podpora@conceptczech.cz' };
 
 const APPROVERS = [
@@ -89,7 +90,7 @@ function sendBrevoEmail(to, toName, subject, htmlContent) {
       path: '/v3/smtp/email',
       method: 'POST',
       headers: {
-        'api-key': BREVO_API_KEY,
+        'api-key': BREVO_API_KEY.value(),
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
       }
@@ -164,6 +165,7 @@ exports.dailyCelebrantsEmail = onSchedule({
   schedule: '0 7 * * *',
   timeZone: 'Europe/Prague',
   region: 'europe-west1',
+  secrets: [BREVO_API_KEY],
 }, async (event) => {
   const today = todayDDMM();
   logger.info(`Checking celebrants for ${today}`);
@@ -210,6 +212,7 @@ exports.dailyCelebrantsEmail = onSchedule({
 // ── HTTP: schválení kliknutím ────────────────────────────
 exports.approveCelebrants = onRequest({
   region: 'europe-west1',
+  secrets: [BREVO_API_KEY],
 }, async (req, res) => {
   const id = req.query.id;
   if (!id) {
@@ -285,4 +288,60 @@ exports.approveCelebrants = onRequest({
       <p style="color:#666;font-size:13px;margin-top:20px">Vše bylo zaznamenáno v historii emailů.</p>
     </div></body></html>
   `);
+});
+
+// ── Callable: odeslání emailu z frontendu (clients.js, shipments.js) ──
+// Nahrazuje přímé volání Brevo API z prohlížeče, aby klíč zůstal serverový.
+const EMAIL_ALLOWED_ROLES = ['admin', 'office', 'warehouse'];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+exports.sendEmailViaBrevo = onCall({
+  region: 'europe-west1',
+  secrets: [BREVO_API_KEY],
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Musíte být přihlášen.');
+  }
+
+  const uid = request.auth.uid;
+  const email = request.auth.token.email || '';
+
+  const adminEmailRegex = /.+@conceptczech\.cz$/i;
+  const hardcodedAdmins = ['knobloch.petr@gmail.com', 'info@banbosh.cz'];
+  const isHardcodedAdmin = adminEmailRegex.test(email) || hardcodedAdmins.includes(email.toLowerCase());
+
+  if (!isHardcodedAdmin) {
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists) {
+      throw new HttpsError('permission-denied', 'Uživatel nenalezen.');
+    }
+    const role = userSnap.data().role || '';
+    if (!EMAIL_ALLOWED_ROLES.includes(role)) {
+      throw new HttpsError('permission-denied', 'Nemáte oprávnění odesílat emaily.');
+    }
+  }
+
+  const { to, toName, subject, htmlContent } = request.data || {};
+  if (!to || !subject || !htmlContent) {
+    throw new HttpsError('invalid-argument', 'Chybí povinné parametry (to, subject, htmlContent).');
+  }
+  if (!EMAIL_RE.test(String(to))) {
+    throw new HttpsError('invalid-argument', 'Neplatná emailová adresa.');
+  }
+  if (String(htmlContent).length > 200000) {
+    throw new HttpsError('invalid-argument', 'Obsah emailu je příliš dlouhý.');
+  }
+
+  try {
+    const result = await sendBrevoEmail(to, toName || '', subject, htmlContent);
+    if (result.status >= 400) {
+      logger.warn(`Brevo returned ${result.status}`, { body: result.body, uid });
+      throw new HttpsError('internal', `Brevo API vrátilo chybu ${result.status}.`);
+    }
+    return { success: true, status: result.status };
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    logger.error('sendEmailViaBrevo failed', err);
+    throw new HttpsError('internal', err.message || 'Odeslání selhalo.');
+  }
 });

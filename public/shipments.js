@@ -5,8 +5,8 @@
 
 const Shipments = (() => {
 
-  const BREVO_API_KEY = 'BREVO-KEY-MOVED-TO-FIREBASE-CONFIG';
-  const FROM_EMAIL = { name: 'Concept Czech', email: 'podpora@conceptczech.cz' };
+  // Brevo volání přesunuto do Cloud Functions (functions/index.js: sendEmailViaBrevo).
+  // Klíč už není v klientském kódu.
 
   // Řádky zásilek v aktuální session
   let rows = [];
@@ -215,27 +215,13 @@ const Shipments = (() => {
     const html = buildEmailHtml(row.trackingNum, row.name, row.orderNum);
     const subject = `🚚 Vaše objednávka č. ${row.orderNum || row.trackingNum} byla expedována`;
 
-    const body = {
-      sender: FROM_EMAIL,
-      to: [{ email: row.email, name: row.name || '' }],
-      replyTo: FROM_EMAIL,
+    const sendFn = firebase.app().functions('europe-west1').httpsCallable('sendEmailViaBrevo');
+    await sendFn({
+      to: row.email,
+      toName: row.name || '',
       subject,
       htmlContent: html
-    };
-
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
     });
-
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(err);
-    }
   }
 
   function buildEmailHtml(trackingNum, name, orderNum) {

@@ -128,5 +128,16 @@ service cloud.firestore {
     match /email_log/{id} {
       allow read, write: if isApproved();
     }
+
+    // --- SHIPMENT EMAIL LOG ---
+    match /shipment_email_log/{id} {
+      allow read, write: if isApproved();
+    }
+
+    // --- PENDING CELEBRANTS (spravované Cloud Function) ---
+    match /pending_celebrants/{id} {
+      allow read: if isAdmin();
+      allow write: if false; // jen Cloud Function (admin SDK)
+    }
   }
 }

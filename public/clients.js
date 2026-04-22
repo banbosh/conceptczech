@@ -14,9 +14,8 @@ const Clients = (() => {
   let sortAsc = true;
   let selectedIds = new Set();
 
-  const BREVO_API_KEY = 'BREVO-KEY-MOVED-TO-FIREBASE-CONFIG';
-  const FROM_EMAIL = { name: 'Concept Czech', email: 'podpora@conceptczech.cz' };
-  const REPLY_TO = { name: 'Concept Czech', email: 'podpora@conceptczech.cz' };
+  // Brevo volání přesunuto do Cloud Functions (functions/index.js: sendEmailViaBrevo).
+  // Klíč už není v klientském kódu.
 
   function t(k) { return App.t(k); }
   function esc(s) { return App.escapeHtml(s); }
@@ -800,21 +799,14 @@ const Clients = (() => {
         var emailHtml = buildEmailHTML(subject, personalBody, discount, type);
 
         try {
-          var resp = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-              'api-key': BREVO_API_KEY,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              sender: FROM_EMAIL,
-              replyTo: REPLY_TO,
-              to: [{ email: recipient.email, name: recipient.name }],
-              subject: subject,
-              htmlContent: emailHtml
-            })
+          var sendFn = firebase.app().functions('europe-west1').httpsCallable('sendEmailViaBrevo');
+          await sendFn({
+            to: recipient.email,
+            toName: recipient.name,
+            subject: subject,
+            htmlContent: emailHtml
           });
-          var success = resp.ok;
+          var success = true;
 
           await db.collection('email_log').add({
             recipientEmail: recipient.email,
@@ -827,7 +819,7 @@ const Clients = (() => {
             sentBy: Auth.getProfile().id
           });
 
-          if (success) successCount++; else errorCount++;
+          successCount++;
         } catch (err) {
           errorCount++;
           await db.collection('email_log').add({
