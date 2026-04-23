@@ -375,12 +375,18 @@ const Tasks = (() => {
       const dueDateStr = task.dueDate ? App.formatDate(task.dueDate) : '';
       const isOverdue = task.dueDate && task.status !== 'done' && parseDueDate(task.dueDate) < new Date();
 
+      const assigneeName = task.assignedTo ? (App.getUserName ? App.getUserName(task.assignedTo) : '') : '';
+      const assigneeBadge = assigneeName
+        ? `<span class="task-assignee" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--primary-lighter);color:var(--primary-dark);border-radius:999px;font-size:0.72rem;font-weight:600">${App.escapeHtml(assigneeName)}</span>`
+        : '';
+
       return `<div class="task-row" data-task-id="${task.id}">
         <div class="task-row-priority" style="background:${priorityColor}"></div>
         <div class="task-row-body">
           <div class="task-row-top">
             <span class="task-row-title">${App.escapeHtml(task.title)}</span>
             <div class="task-row-badges">
+              ${assigneeBadge}
               ${deptBadgeHtml(task.assignedRole)}
               ${periodBadgeHtml(task.recurring)}
             </div>
@@ -432,7 +438,11 @@ const Tasks = (() => {
           </div>
         </div>
         <h2 class="card-title" style="font-size:1.1rem">${App.escapeHtml(task.title)}</h2>
-        <div class="card-meta">${task.dueDate ? App.formatDate(task.dueDate) : ''}${task.createdBy ? ' \u00b7 ' + task.createdBy : ''}</div>
+        <div class="card-meta">
+          ${task.dueDate ? App.formatDate(task.dueDate) : ''}
+          ${task.createdBy ? ' \u00b7 zadal ' + App.escapeHtml(task.createdBy) : ''}
+          ${task.assignedTo && App.getUserName ? ' \u00b7 p\u0159i\u0159azeno: <strong>' + App.escapeHtml(App.getUserName(task.assignedTo) || '\u2014') + '</strong>' : ''}
+        </div>
         ${task.description ? `<div class="card-body mt-8">${App.escapeHtml(task.description)}</div>` : ''}
       </div>`;
 
@@ -509,6 +519,14 @@ const Tasks = (() => {
       `<option value="${role}">${info.label}</option>`
     ).join('');
 
+    // Seznam v\u0161ech schv\u00e1len\u00fdch u\u017eivatel\u016f pro p\u0159id\u011blen\u00ed konkr\u00e9tn\u00ed osob\u011b
+    const users = (typeof App.getApprovedUsers === 'function' ? App.getApprovedUsers() : []) || [];
+    const userOptions = ['<option value="">\u2014 nikdo konkr\u00e9tn\u00ed \u2014</option>']
+      .concat(users
+        .sort((a, b) => (a.displayName || a.email || '').localeCompare(b.displayName || b.email || ''))
+        .map(u => `<option value="${u.id}">${App.escapeHtml(u.displayName || u.email)}${u.role ? ' (' + App.roleLabel(u.role) + ')' : ''}</option>`))
+      .join('');
+
     const html = `
       <div class="modal-header">
         <h3 class="modal-title">${App.t('addTask')}</h3>
@@ -522,21 +540,29 @@ const Tasks = (() => {
         <label class="form-label">${App.t('taskDesc')}</label>
         <textarea class="form-textarea" id="new-task-desc"></textarea>
       </div>
-      <div class="form-group">
-        <label class="form-label">Pro koho (odd\u011blen\u00ed)</label>
-        <select class="form-select" id="new-task-dept">${deptOptions}</select>
+      <div class="flex gap-8">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Pro odd\u011blen\u00ed</label>
+          <select class="form-select" id="new-task-dept">${deptOptions}</select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Konkr\u00e9tn\u00ed osoba (voliteln\u00e9)</label>
+          <select class="form-select" id="new-task-assignee">${userOptions}</select>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">${App.t('taskDue')}</label>
-        <input type="date" class="form-input" id="new-task-due">
-      </div>
-      <div class="form-group">
-        <label class="form-label">${App.t('taskPriority')}</label>
-        <select class="form-select" id="new-task-priority">
-          <option value="normal">${App.t('priorityNormal')}</option>
-          <option value="high">${App.t('priorityHigh')}</option>
-          <option value="urgent">${App.t('priorityUrgent')}</option>
-        </select>
+      <div class="flex gap-8">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">${App.t('taskDue')}</label>
+          <input type="date" class="form-input" id="new-task-due">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">${App.t('taskPriority')}</label>
+          <select class="form-select" id="new-task-priority">
+            <option value="normal">${App.t('priorityNormal')}</option>
+            <option value="high">${App.t('priorityHigh')}</option>
+            <option value="urgent">${App.t('priorityUrgent')}</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Typ \u00fakolu</label>
@@ -548,9 +574,9 @@ const Tasks = (() => {
       <div class="form-group" id="new-task-recurrence-group" style="display:none">
         <label class="form-label">Periodicita</label>
         <select class="form-select" id="new-task-recurrence">
-          <option value="daily">\u{1F504} Denn\u011b</option>
-          <option value="weekly">\u{1F4C5} T\u00fddn\u011b</option>
-          <option value="monthly">\u{1F4C6} M\u011bs\u00ed\u010dn\u011b</option>
+          <option value="daily">Denn\u011b</option>
+          <option value="weekly">T\u00fddn\u011b</option>
+          <option value="monthly">M\u011bs\u00ed\u010dn\u011b</option>
         </select>
       </div>
       <div class="flex gap-8">
@@ -581,7 +607,7 @@ const Tasks = (() => {
       title,
       description: document.getElementById('new-task-desc').value.trim(),
       assignedRole: document.getElementById('new-task-dept').value,
-      assignedTo: null,
+      assignedTo: document.getElementById('new-task-assignee').value || null,
       dueDate: dueVal ? (() => { const [y,m,d] = dueVal.split('-').map(Number); return new Date(y, m-1, d, 12, 0, 0); })() : null,
       priority: document.getElementById('new-task-priority').value,
       status: 'new',
