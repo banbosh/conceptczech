@@ -338,6 +338,7 @@ const App = (() => {
       case 'productivity': Productivity.render(); break;
       case 'clients': Clients.render(); break;
       case 'shipments': Shipments.render(); break;
+      case 'oz-shipments': OzShipments.render(); break;
     }
   }
 
@@ -378,6 +379,13 @@ const App = (() => {
     const bottomClients = document.getElementById('bottom-clients');
     if (sidebarClients) sidebarClients.classList.toggle('hidden', !showClients);
     if (bottomClients) bottomClients.classList.toggle('hidden', !showClients);
+    // OZ Shipments tab: visible for admin, office, warehouse, sales_cz, sales_sk
+    const ozRoles = ['admin', 'office', 'warehouse', 'sales_cz', 'sales_sk'];
+    const showOz = profile && ozRoles.includes(profile.role);
+    const sidebarOz = document.getElementById('sidebar-oz-shipments');
+    const drawerOz = document.getElementById('drawer-oz-shipments');
+    if (sidebarOz) sidebarOz.classList.toggle('hidden', !showOz);
+    if (drawerOz) drawerOz.classList.toggle('hidden', !showOz);
   }
 
   /* ---------- Modal ---------- */

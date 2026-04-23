@@ -134,6 +134,16 @@ service cloud.firestore {
       allow read, write: if isApproved();
     }
 
+    // --- SHIPMENTS (zásilky + PPL sledování) ---
+    match /shipments/{id} {
+      // Všichni schválení mohou číst — OZ vidí jen své klienty díky filtru v UI
+      allow read: if isApproved();
+      // Zapisovat smí admin/office/warehouse (přes UI) a Cloud Function (admin SDK)
+      allow create, update: if isAdmin() ||
+        (userExists() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['office', 'warehouse']);
+      allow delete: if isAdmin();
+    }
+
     // --- PENDING CELEBRANTS (spravované Cloud Function) ---
     match /pending_celebrants/{id} {
       allow read: if isAdmin();

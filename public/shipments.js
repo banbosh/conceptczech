@@ -12,6 +12,8 @@ const Shipments = (() => {
   let rows = [];
   let sentLog = [];
   let logUnsubscribe = null;
+  let clientsCache = [];       // pole klientů pro autocomplete
+  let clientsById = new Map(); // lookup pro dohledání OZ
 
   function render() {
     const container = document.getElementById('view-shipments');
@@ -61,13 +63,56 @@ const Shipments = (() => {
       rows = [emptyRow(), emptyRow(), emptyRow()];
     }
 
+    // Načti seznam klientů (pro autocomplete propojení se zásilkou)
+    loadClients().then(() => {
+      renderClientDatalist();
+      renderRows(container);
+    });
+
     renderRows(container);
     bindEvents(container);
     loadLog(container);
   }
 
   function emptyRow() {
-    return { id: Date.now() + Math.random(), trackingNum: '', name: '', email: '', orderNum: '' };
+    return { id: Date.now() + Math.random(), trackingNum: '', name: '', email: '', orderNum: '', clientId: '', oz: '' };
+  }
+
+  async function loadClients() {
+    try {
+      const snap = await db.collection('clients').orderBy('name').limit(2000).get();
+      clientsCache = [];
+      clientsById = new Map();
+      snap.forEach(doc => {
+        const c = { id: doc.id, ...doc.data() };
+        clientsCache.push(c);
+        clientsById.set(c.id, c);
+      });
+    } catch (e) {
+      console.warn('loadClients failed:', e);
+    }
+  }
+
+  function renderClientDatalist() {
+    // Datalist se opakovaně použije u všech řádků
+    if (document.getElementById('shipment-clients-list')) return;
+    const dl = document.createElement('datalist');
+    dl.id = 'shipment-clients-list';
+    dl.innerHTML = clientsCache.map(c =>
+      `<option data-id="${c.id}" value="${App.escapeHtml(c.name)}${c.city ? ' (' + App.escapeHtml(c.city) + ')' : ''}"></option>`
+    ).join('');
+    document.body.appendChild(dl);
+  }
+
+  function findClientByDisplay(display) {
+    if (!display) return null;
+    const val = String(display).trim();
+    // Exact match "Název (Město)" nebo jen "Název"
+    return clientsCache.find(c => {
+      const a = c.name;
+      const b = `${c.name}${c.city ? ' (' + c.city + ')' : ''}`;
+      return a === val || b === val;
+    }) || null;
   }
 
   function renderRows(container) {
@@ -87,23 +132,28 @@ const Shipments = (() => {
         <table class="st-table" style="font-size:0.85rem">
           <thead>
             <tr>
-              <th style="width:160px">Číslo zásilky *</th>
-              <th style="width:180px">Jméno zákazníka</th>
-              <th>Email zákazníka *</th>
-              <th style="width:130px">Číslo objednávky</th>
+              <th style="width:150px">Číslo zásilky *</th>
+              <th style="width:200px">Klient (volitelné)</th>
+              <th style="width:160px">Jméno příjemce</th>
+              <th>Email *</th>
+              <th style="width:120px">Č. objednávky</th>
               <th style="width:40px"></th>
             </tr>
           </thead>
           <tbody>
-            ${rows.map((r, i) => `
+            ${rows.map((r, i) => {
+              const linked = r.clientId ? clientsById.get(r.clientId) : null;
+              const clientDisplay = linked ? `${linked.name}${linked.city ? ' (' + linked.city + ')' : ''}` : '';
+              return `
               <tr data-idx="${i}">
                 <td><input class="form-input row-tracking" style="font-size:0.8rem;padding:6px 8px" placeholder="44150009587" value="${App.escapeHtml(r.trackingNum)}" data-idx="${i}"></td>
+                <td><input class="form-input row-client" list="shipment-clients-list" style="font-size:0.8rem;padding:6px 8px" placeholder="Napiš část názvu…" value="${App.escapeHtml(clientDisplay)}" data-idx="${i}"></td>
                 <td><input class="form-input row-name" style="font-size:0.8rem;padding:6px 8px" placeholder="Jana Nováková" value="${App.escapeHtml(r.name)}" data-idx="${i}"></td>
                 <td><input class="form-input row-email" style="font-size:0.8rem;padding:6px 8px" placeholder="email@example.com" value="${App.escapeHtml(r.email)}" data-idx="${i}" type="email"></td>
                 <td><input class="form-input row-order" style="font-size:0.8rem;padding:6px 8px" placeholder="260100720" value="${App.escapeHtml(r.orderNum)}" data-idx="${i}"></td>
                 <td><button class="btn btn-sm" style="background:none;color:var(--gray-400);padding:4px 6px" data-remove="${i}" title="Odstranit">✕</button></td>
-              </tr>
-            `).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>`;
@@ -111,6 +161,24 @@ const Shipments = (() => {
     // Bind input changes
     el.querySelectorAll('.row-tracking').forEach(inp => {
       inp.addEventListener('input', e => { rows[+e.target.dataset.idx].trackingNum = e.target.value.trim(); updateSendButton(container); });
+    });
+    el.querySelectorAll('.row-client').forEach(inp => {
+      inp.addEventListener('change', e => {
+        const idx = +e.target.dataset.idx;
+        const client = findClientByDisplay(e.target.value);
+        if (client) {
+          rows[idx].clientId = client.id;
+          rows[idx].oz = client.oz || '';
+          // Auto-doplnit jméno + email, pokud ještě prázdné
+          if (!rows[idx].name && client.contactPerson) rows[idx].name = client.contactPerson;
+          else if (!rows[idx].name) rows[idx].name = client.name;
+          if (!rows[idx].email && client.email) rows[idx].email = client.email;
+          renderRows(container);
+        } else {
+          rows[idx].clientId = '';
+          rows[idx].oz = '';
+        }
+      });
     });
     el.querySelectorAll('.row-name').forEach(inp => {
       inp.addEventListener('input', e => { rows[+e.target.dataset.idx].name = e.target.value; });
@@ -174,21 +242,48 @@ const Shipments = (() => {
     btn.disabled = true;
     btn.textContent = '⏳ Odesílám...';
 
+    const profile = Auth.getProfile() || {};
     let sent = 0, failed = 0;
 
     for (const r of toSend) {
       try {
         await sendEmail(r);
         sent++;
-        // Uložit do logu
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+
+        // 1) Log odeslaného emailu (pro staré zobrazení historie)
         await db.collection('shipment_email_log').add({
           trackingNum: r.trackingNum,
           name: r.name,
           email: r.email,
           orderNum: r.orderNum,
-          sentAt: firebase.firestore.FieldValue.serverTimestamp(),
-          sentBy: Auth.getProfile()?.displayName || 'system'
+          sentAt: now,
+          sentBy: profile.displayName || 'system',
+          type: 'handover_manual'
         });
+
+        // 2) Vytvořit / aktualizovat záznam v kolekci 'shipments' pro
+        //    sledování stavu PPL a zobrazení v OZ dashboardu.
+        const linkedClient = clientsById.get(r.clientId) || null;
+        const ozName = (linkedClient && linkedClient.oz) || r.oz || '';
+        const clientName = (linkedClient && linkedClient.name) || r.name || '';
+
+        await db.collection('shipments').doc(r.trackingNum).set({
+          trackingNum: r.trackingNum,
+          orderNum: r.orderNum || '',
+          recipientEmail: r.email,
+          recipientName: r.name || '',
+          clientId: r.clientId || null,
+          clientName: clientName,
+          oz: ozName,
+          pplStatus: 'handed_to_courier',
+          pplStatusText: 'Předáno dopravci (manuálně)',
+          pplStatusHistory: [{ timestamp: new Date().toISOString(), code: 'MANUAL_HANDOVER', text: 'Předáno dopravci (manuálně v aplikaci)' }],
+          emailHandoverSentAt: now,
+          createdAt: now,
+          createdBy: profile.id || 'system',
+          createdByName: profile.displayName || ''
+        }, { merge: true });
       } catch (e) {
         console.error('Email error:', r.email, e);
         failed++;
