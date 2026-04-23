@@ -842,14 +842,29 @@ exports.pplCreateTestShipment = onCall({
   try {
     const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
     const token = await pplGetAccessToken();
-
-    // Unikátní externí reference ať neovlivňuje další test
     const ref = `TEST-${Date.now()}`;
 
-    // Základní data — sender = Concept Czech, recipient = test
-    const shipment = {
+    const userProduct = (request.data && request.data.productType) || null;
+    // PPL CPL API kódy produktů — zkusíme různé varianty, dokud validace projde
+    const productTypeVariants = userProduct ? [userProduct] : [
+      'PPLParcelCZBusiness',
+      'pplparcelczbusiness',
+      'PPL_PARCEL_CZ_BUSINESS',
+      'parcelCZbusiness',
+      'CZBusinessParcel',
+      'CZ_Business',
+      'Business',
+      'BUSINESSPARCEL',
+      'BUSB',
+      'BUSI',
+      'PRIVATE',
+      'PPLParcelCZPrivate',
+      'parcelCZprivate',
+    ];
+
+    const makeShipment = (productType) => ({
       referenceId: ref,
-      productType: 'BUSINESSPARCEL',
+      productType,
       note: 'TESTOVACÍ ZÁSILKA — neodesílat',
       shipmentSet: { numberOfShipments: 1 },
       sender: {
@@ -874,19 +889,14 @@ exports.pplCreateTestShipment = onCall({
       packages: [
         { weight: 1.5, width: 20, length: 30, height: 15 },
       ],
-    };
-
-    // PPL CPL API: POST /shipment/batch (preferovaná) nebo POST /shipment
-    const bodies = [
-      { path: '/shipment/batch', body: { shipments: [shipment] } },
-      { path: '/shipment', body: shipment },
-      { path: '/shipment', body: { shipments: [shipment] } },
-    ];
+    });
 
     const attempts = [];
-    for (const attempt of bodies) {
-      const bodyStr = JSON.stringify(attempt.body);
-      const url = new URL(baseUrl + attempt.path);
+    let validProductFound = null;
+    for (const pt of productTypeVariants) {
+      const body = { shipments: [makeShipment(pt)] };
+      const bodyStr = JSON.stringify(body);
+      const url = new URL(baseUrl + '/shipment/batch');
       const res = await httpRequest({
         hostname: url.hostname,
         path: url.pathname,
@@ -898,29 +908,46 @@ exports.pplCreateTestShipment = onCall({
           'Accept': 'application/json',
         },
       }, bodyStr);
+
+      const responseText = String(res.body || '');
+      const productTypeStillInvalid = /ProductType/i.test(responseText) && /invalid|not.*defined|unknown|must.*be|allowed/i.test(responseText);
+
       attempts.push({
-        path: attempt.path,
-        bodyKeys: Object.keys(attempt.body),
+        productType: pt,
         status: res.status,
-        response: String(res.body || '').slice(0, 2000),
+        response: responseText.slice(0, 700),
+        productTypeOk: !productTypeStillInvalid,
       });
+
       if (res.status >= 200 && res.status < 300) {
         let parsed = null;
         try { parsed = JSON.parse(res.body); } catch (_) {}
         return {
           ok: true,
           status: res.status,
-          path: attempt.path,
+          path: '/shipment/batch',
+          productType: pt,
           shipment: parsed,
           raw: res.body,
-          locationHeader: res.headers && (res.headers.location || res.headers.Location) || null,
           referenceId: ref,
           attempts,
         };
       }
+
+      // Pokud ProductType už není zmíněno v chybách, našli jsme validní hodnotu
+      if (!productTypeStillInvalid && !validProductFound) {
+        validProductFound = pt;
+      }
     }
 
-    return { ok: false, error: 'Žádná varianta POST /shipment nebyla přijata.', attempts };
+    return {
+      ok: false,
+      error: validProductFound
+        ? `ProductType '${validProductFound}' prošel validací, ale jiná pole ho blokují. Koukni na attempts.`
+        : 'Žádná hodnota ProductType nebyla PPL přijata.',
+      validProductFound,
+      attempts,
+    };
   } catch (e) {
     logger.error('pplCreateTestShipment', e);
     return { ok: false, error: String(e.message || e), stack: String(e.stack || '').slice(0, 500) };
