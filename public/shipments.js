@@ -33,7 +33,8 @@ const Shipments = (() => {
       </div>
       <div id="shipment-rows"></div>
       <div class="flex gap-8 mt-12" style="flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" id="btn-import-csv">Nahrát PPL CSV</button>
+        <button class="btn btn-primary btn-sm" id="btn-fetch-ppl">Načíst dnešní z PPL</button>
+        <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát PPL CSV</button>
         <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku</button>
         <button class="btn btn-outline btn-sm" id="btn-clear-rows">Vymazat vše</button>
         <input type="file" id="csv-file-input" accept=".csv,text/csv,.txt,.tsv" style="display:none">
@@ -244,6 +245,52 @@ const Shipments = (() => {
       if (f) handleCsvFile(f, container);
       fileInp.value = '';
     });
+
+    // Načíst zásilky z PPL API
+    container.querySelector('#btn-fetch-ppl').addEventListener('click', () => fetchFromPPL(container));
+  }
+
+  async function fetchFromPPL(container) {
+    const statusEl = container.querySelector('#import-status');
+    const btn = container.querySelector('#btn-fetch-ppl');
+    btn.disabled = true;
+    btn.textContent = 'Načítám z PPL…';
+    statusEl.innerHTML = '<span style="color:var(--gray-600)">Volám PPL API…</span>';
+
+    try {
+      const fn = firebase.app().functions('europe-west1').httpsCallable('pplListShipments');
+      const res = await fn({ days: 1 });
+      const data = res.data || {};
+      if (data.ok && Array.isArray(data.shipments) && data.shipments.length > 0) {
+        const fresh = data.shipments.map(s => {
+          const r = emptyRow();
+          r.trackingNum = s.trackingNum || '';
+          r.name = s.name || '';
+          r.email = s.email || '';
+          r.orderNum = s.orderNum || '';
+          return r;
+        });
+        const allEmpty = rows.every(r => !r.trackingNum && !r.email && !r.orderNum);
+        rows = allEmpty ? fresh : rows.concat(fresh);
+        renderRows(container);
+        const warn = fresh.filter(r => !r.email).length;
+        statusEl.innerHTML = `<span style="color:var(--success)">Načteno ${fresh.length} zásilek z PPL (endpoint ${data.path}).</span>` +
+          (warn > 0 ? ` <span style="color:var(--warning)">${warn} bez emailu — doplň ručně.</span>` : '');
+      } else if (data.ok && data.count === 0) {
+        statusEl.innerHTML = `<span style="color:var(--warning)">PPL API odpovědělo na ${data.path}, ale dnes nevrací žádné zásilky. Zkus nahrát CSV export z portálu.</span>`;
+      } else {
+        const attempts = (data.attempts || []).map(a => `${a.path} → ${a.status}`).join('<br>');
+        statusEl.innerHTML = `<span style="color:var(--danger)">PPL API nevrátilo seznam zásilek.</span>
+          <div style="color:var(--gray-600);margin-top:6px">Zkoušeno:<br>${attempts || '(nic)'}</div>
+          <div style="color:var(--gray-600);margin-top:6px">Nejspíš sandbox nemá endpoint pro výpis, nebo ho PPL pojmenovalo jinak. Použij prozatím "Nahrát PPL CSV".</div>`;
+      }
+    } catch (err) {
+      console.error('PPL fetch error:', err);
+      statusEl.innerHTML = `<span style="color:var(--danger)">Chyba PPL: ${escapeHtml(err.message || err.code || String(err))}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Načíst dnešní z PPL';
+    }
   }
 
   /* ============================================================

@@ -702,3 +702,105 @@ exports.pplTestTracking = onCall({
     return { ok: false, error: String(e.message || e) };
   }
 });
+
+// Callable: seznam zásilek za poslední N dní (zkouší různé varianty endpointu)
+// Použito tlačítkem "Načíst dnešní z PPL" v modulu Zásilky.
+exports.pplListShipments = onCall({
+  region: 'europe-west1',
+  secrets: [PPL_CLIENT_ID, PPL_CLIENT_SECRET, PPL_BASE_URL],
+  timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Musíte být přihlášen.');
+  const email = (request.auth.token.email || '').toLowerCase();
+  const isAdm = /.+@conceptczech\.cz$/i.test(email) || ['knobloch.petr@gmail.com', 'info@banbosh.cz'].includes(email);
+  if (!isAdm) {
+    const userSnap = await db.collection('users').doc(request.auth.uid).get();
+    const role = userSnap.exists ? (userSnap.data().role || '') : '';
+    if (!['admin', 'office', 'warehouse'].includes(role)) {
+      throw new HttpsError('permission-denied', 'Jen admin, office nebo warehouse.');
+    }
+  }
+
+  const days = Math.max(1, Math.min(30, Number((request.data && request.data.days) || 1)));
+  const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
+  if (!baseUrl) throw new HttpsError('failed-precondition', 'PPL_BASE_URL není nastaveno.');
+
+  const token = await pplGetAccessToken();
+
+  const now = new Date();
+  const fromDate = new Date(now); fromDate.setDate(now.getDate() - days + 1); fromDate.setHours(0, 0, 0, 0);
+  const fmt = (d) => d.toISOString().slice(0, 10);             // 2026-04-23
+  const fmtCz = (d) => d.toISOString().slice(0, 10).replace(/-/g, '') + 'T000000Z'; // alt
+
+  // PPL CPL API má několik tvarů list endpointu; zkusíme je postupně.
+  const candidates = [
+    `/shipment?DateFrom=${fmt(fromDate)}&DateTo=${fmt(now)}`,
+    `/shipment?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
+    `/shipment?CreatedFrom=${fmt(fromDate)}&CreatedTo=${fmt(now)}`,
+    `/shipment?From=${fmtCz(fromDate)}&To=${fmtCz(now)}`,
+    `/shipment/search?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
+    `/shipment-batch?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
+    `/shipment?limit=200`,
+    `/shipment`,
+  ];
+
+  const attempts = [];
+  for (const path of candidates) {
+    const url = new URL(baseUrl + path);
+    const res = await httpRequest({
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    attempts.push({ path, status: res.status, bodyPreview: String(res.body || '').slice(0, 160) });
+    if (res.status < 400 && res.body) {
+      try {
+        const data = JSON.parse(res.body);
+        const shipments = extractShipmentsFromResponse(data);
+        return { ok: true, path, count: shipments.length, shipments, raw: data, attempts };
+      } catch (e) {
+        continue;
+      }
+    }
+    if (res.status === 401) break;
+  }
+
+  return { ok: false, error: 'Žádný list endpoint neodpověděl 2xx.', attempts };
+});
+
+// Z různých tvarů odpovědi se pokouší vytáhnout pole zásilek
+// a zmapovat je na { trackingNum, name, email, orderNum }.
+function extractShipmentsFromResponse(data) {
+  const arr = Array.isArray(data) ? data
+    : data.shipments || data.Shipments || data.items || data.Items
+    || data.data || data.Data || data.result || data.Result
+    || [];
+  if (!Array.isArray(arr)) return [];
+
+  const pick = (obj, keys) => {
+    for (const k of keys) {
+      const path = k.split('.');
+      let v = obj;
+      for (const p of path) {
+        if (v == null) { v = undefined; break; }
+        const exact = v[p];
+        if (exact !== undefined) { v = exact; continue; }
+        const ci = Object.keys(v).find(kk => kk.toLowerCase() === p.toLowerCase());
+        v = ci !== undefined ? v[ci] : undefined;
+      }
+      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+  };
+
+  return arr.map(s => ({
+    trackingNum: pick(s, ['shipmentNumber', 'ShipmentNumber', 'trackingNumber', 'TrackingNumber', 'parcelNumber', 'ParcelNumber', 'awbNumber', 'AwbNumber', 'number', 'Number', 'id', 'Id']),
+    name:        pick(s, ['recipient.name', 'Recipient.Name', 'recipient.Name', 'recipientName', 'RecipientName', 'addressee.name', 'Addressee.Name', 'receiver.name', 'Receiver.Name', 'recipient.company', 'Recipient.Company', 'consigneeName', 'ConsigneeName']),
+    email:       pick(s, ['recipient.email', 'Recipient.Email', 'recipient.Email', 'recipientEmail', 'RecipientEmail', 'email', 'Email', 'consigneeEmail', 'ConsigneeEmail']),
+    orderNum:    pick(s, ['referenceId', 'ReferenceId', 'reference', 'Reference', 'orderNumber', 'OrderNumber', 'externalId', 'ExternalId', 'customerReference', 'CustomerReference']),
+  })).filter(x => x.trackingNum);
+}
