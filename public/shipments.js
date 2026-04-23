@@ -36,6 +36,7 @@ const Shipments = (() => {
         <button class="btn btn-primary btn-sm" id="btn-fetch-ppl">Načíst dnešní z PPL</button>
         <button class="btn btn-primary btn-sm" id="btn-paste-ppl">Vložit text z PPL</button>
         <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát soubor z PPL (PDF / CSV)</button>
+        <button class="btn btn-accent btn-sm" id="btn-enrich-ppl">Doplnit emaily z PPL</button>
         <button class="btn btn-accent btn-sm" id="btn-test-label">Vygenerovat testovací etiketu</button>
         <button class="btn btn-outline btn-sm" id="btn-test-ppl">Test PPL přihlášení</button>
         <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku</button>
@@ -257,6 +258,72 @@ const Shipments = (() => {
     container.querySelector('#btn-test-ppl').addEventListener('click', () => testPPLLogin(container));
     container.querySelector('#btn-test-label').addEventListener('click', () => createTestLabel(container));
     container.querySelector('#btn-paste-ppl').addEventListener('click', () => openPastePPLModal(container));
+    container.querySelector('#btn-enrich-ppl').addEventListener('click', () => enrichFromPPL(container));
+  }
+
+  async function enrichFromPPL(container) {
+    const statusEl = container.querySelector('#import-status');
+    const btn = container.querySelector('#btn-enrich-ppl');
+    const trackings = rows.map(r => r.trackingNum).filter(t => t && t.length >= 8);
+    if (trackings.length === 0) {
+      statusEl.innerHTML = '<span style="color:var(--warning)">V tabulce nejsou žádná tracking čísla k doplnění.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = `Doplňuji emaily (${trackings.length}×)…`;
+    statusEl.innerHTML = `<span style="color:var(--gray-600)">Volám PPL API pro ${trackings.length} zásilek — chvíli to trvá…</span>`;
+
+    try {
+      const fn = firebase.app().functions('europe-west1').httpsCallable('pplEnrichShipments');
+      const res = await fn({ trackingNumbers: trackings });
+      const d = res.data || {};
+
+      if (!d.ok) {
+        statusEl.innerHTML = `<span style="color:var(--danger)">Chyba: ${escapeHtml(d.error || 'neznámá')}</span>`;
+        return;
+      }
+
+      let filled = 0, notFound = 0;
+      const debugLines = [];
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r.trackingNum) continue;
+        const found = d.results && d.results[r.trackingNum];
+        if (found && found.email) {
+          if (!r.email) {
+            r.email = found.email;
+            filled++;
+          }
+          // Pokud jsme z API získali lepší jméno a rows nemá, doplň
+          if (!r.name && found.name) r.name = found.name;
+        } else {
+          notFound++;
+          const dbg = d.debug && d.debug[r.trackingNum];
+          if (dbg && dbg.attempts) {
+            const attempt = dbg.attempts[0];
+            debugLines.push(`<div><code>${escapeHtml(r.trackingNum)}</code>: ${attempt ? 'HTTP ' + attempt.status : 'bez odpovědi'}</div>`);
+          }
+        }
+      }
+      renderRows(container);
+
+      let html = `<span style="color:var(--success)">Doplněno ${filled} emailů z PPL.</span>`;
+      if (notFound > 0) {
+        html += ` <span style="color:var(--warning)">${notFound} bez emailu — doplň ručně.</span>`;
+      }
+      if (debugLines.length) {
+        html += `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--gray-600)">Detaily selhání (${debugLines.length})</summary>
+          <div style="margin-top:4px;font-size:0.8rem">${debugLines.slice(0, 20).join('')}</div></details>`;
+      }
+      statusEl.innerHTML = html;
+    } catch (err) {
+      console.error('enrich error', err);
+      statusEl.innerHTML = `<span style="color:var(--danger)">Chyba: ${escapeHtml(err.message || err.code || String(err))}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Doplnit emaily z PPL';
+    }
   }
 
   /* ============================================================

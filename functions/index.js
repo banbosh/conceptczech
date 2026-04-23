@@ -1149,3 +1149,137 @@ function extractShipmentsFromResponse(data) {
     orderNum:    pick(s, ['referenceId', 'ReferenceId', 'reference', 'Reference', 'orderNumber', 'OrderNumber', 'externalId', 'ExternalId', 'customerReference', 'CustomerReference']),
   })).filter(x => x.trackingNum);
 }
+
+// Rekurzivně najde v libovolné odpovědi pole vypadající jako email
+function deepFindEmail(obj, path = '') {
+  if (!obj) return null;
+  if (typeof obj === 'string') {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(obj)) return { email: obj, path };
+    return null;
+  }
+  if (typeof obj !== 'object') return null;
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      const r = deepFindEmail(obj[i], `${path}[${i}]`);
+      if (r) return r;
+    }
+    return null;
+  }
+  // Prioritizuj klíče s 'email' v názvu a nespecifické klíče pro odesílatele ignoruj
+  const keys = Object.keys(obj).sort((a, b) => {
+    const aEmail = /email|mail/i.test(a) ? 0 : 1;
+    const bEmail = /email|mail/i.test(b) ? 0 : 1;
+    return aEmail - bEmail;
+  });
+  for (const k of keys) {
+    // Přeskoč odesílatele — chceme email příjemce
+    if (/sender|odesilatel|odesílatel|shipper/i.test(k) && /email|mail/i.test(k)) continue;
+    const r = deepFindEmail(obj[k], path ? `${path}.${k}` : k);
+    if (r) return r;
+  }
+  return null;
+}
+
+// Callable: pro pole tracking čísel zkusí z PPL API vytáhnout detail zásilky
+// (včetně emailu příjemce). Vrací mapu { trackingNum → { email, name, rawPath } }.
+exports.pplEnrichShipments = onCall({
+  region: 'europe-west1',
+  secrets: [PPL_CLIENT_ID, PPL_CLIENT_SECRET, PPL_BASE_URL],
+  timeoutSeconds: 300,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Musíte být přihlášen.');
+  const email = (request.auth.token.email || '').toLowerCase();
+  const isAdm = /.+@conceptczech\.cz$/i.test(email) || ['knobloch.petr@gmail.com', 'info@banbosh.cz'].includes(email);
+  if (!isAdm) {
+    const userSnap = await db.collection('users').doc(request.auth.uid).get();
+    const role = userSnap.exists ? (userSnap.data().role || '') : '';
+    if (!['admin', 'office', 'warehouse'].includes(role)) {
+      throw new HttpsError('permission-denied', 'Jen admin, office nebo warehouse.');
+    }
+  }
+
+  const trackings = Array.isArray(request.data && request.data.trackingNumbers) ? request.data.trackingNumbers : [];
+  if (trackings.length === 0) return { ok: false, error: 'Prázdný seznam tracking čísel.' };
+
+  try {
+    const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
+    const token = await pplGetAccessToken();
+    const results = {};
+    const debug = {};
+
+    for (const tn of trackings.slice(0, 100)) {
+      const tnStr = String(tn).trim();
+      if (!tnStr) continue;
+
+      // Zkusíme více variant detailu zásilky
+      const candidates = [
+        `/shipment/${encodeURIComponent(tnStr)}`,
+        `/shipment?ShipmentNumbers=${encodeURIComponent(tnStr)}&Limit=1&Offset=0`,
+        `/shipment?shipmentNumbers=${encodeURIComponent(tnStr)}&Limit=1&Offset=0`,
+        `/shipment?Number=${encodeURIComponent(tnStr)}&Limit=1&Offset=0`,
+        `/shipment?TrackingNumber=${encodeURIComponent(tnStr)}&Limit=1&Offset=0`,
+      ];
+
+      let found = null;
+      let attempts = [];
+      for (const path of candidates) {
+        try {
+          const url = new URL(baseUrl + path);
+          const res = await httpRequest({
+            hostname: url.hostname,
+            path: url.pathname + url.search,
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+          });
+          attempts.push({ path, status: res.status, preview: String(res.body || '').slice(0, 200) });
+          if (res.status >= 200 && res.status < 300 && res.body) {
+            try {
+              const data = JSON.parse(res.body);
+              const emailFound = deepFindEmail(data);
+              // Pokusíme se najít jméno i s prioritou na recipient
+              const name = pickDeepName(data);
+              if (emailFound || name) {
+                found = { path, email: emailFound ? emailFound.email : null, emailPath: emailFound ? emailFound.path : null, name, raw: data };
+                break;
+              }
+            } catch (e) {}
+          }
+          if (res.status === 401) break;
+        } catch (e) {
+          attempts.push({ path, error: String(e.message || e) });
+        }
+      }
+
+      if (found) {
+        results[tnStr] = { email: found.email, name: found.name, emailPath: found.emailPath };
+        debug[tnStr] = { path: found.path, attempts };
+      } else {
+        debug[tnStr] = { attempts };
+      }
+    }
+
+    return { ok: true, results, debug };
+  } catch (e) {
+    logger.error('pplEnrichShipments', e);
+    return { ok: false, error: String(e.message || e), stack: String(e.stack || '').slice(0, 500) };
+  }
+});
+
+function pickDeepName(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  // Prohledej obj hluboce a najdi pole jménem name, recipientName, consigneeName, apod.
+  // Preferuj ty, které jsou v recipient/consignee/addressee
+  const preferred = ['recipient.name', 'Recipient.Name', 'recipient.company', 'Recipient.Company',
+                     'consignee.name', 'addressee.name', 'receiver.name'];
+  for (const p of preferred) {
+    const parts = p.split('.');
+    let v = obj;
+    for (const part of parts) {
+      if (!v || typeof v !== 'object') { v = undefined; break; }
+      const key = Object.keys(v).find(k => k.toLowerCase() === part.toLowerCase());
+      v = key ? v[key] : undefined;
+    }
+    if (v && typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
