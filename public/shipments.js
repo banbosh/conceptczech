@@ -29,21 +29,32 @@ const Shipments = (() => {
 
     html += `<div class="card mb-16">
       <div style="font-size:0.9rem;color:var(--gray-600);margin-bottom:12px">
-        Zadejte zásilky z dnešního PPL výdeji. Každý řádek = jedna zásilka. Po vyplnění emailů odešlete notifikace zákazníkům. Nebo nahrajte CSV export z PPL portálu — tabulka se vyplní automaticky.
+        Nahraj PDF export z PPL portálu — tabulka se vyplní automaticky včetně emailů příjemců.
       </div>
       <div id="shipment-rows"></div>
-      <div class="flex gap-8 mt-12" style="flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" id="btn-fetch-ppl">Načíst dnešní z PPL</button>
-        <button class="btn btn-primary btn-sm" id="btn-paste-ppl">Vložit text z PPL</button>
-        <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát soubor z PPL (PDF / CSV)</button>
-        <button class="btn btn-accent btn-sm" id="btn-enrich-ppl">Doplnit emaily z PPL</button>
-        <button class="btn btn-accent btn-sm" id="btn-test-label">Vygenerovat testovací etiketu</button>
-        <button class="btn btn-outline btn-sm" id="btn-test-ppl">Test PPL přihlášení</button>
-        <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku</button>
+      <div class="flex gap-8 mt-12" style="flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" id="btn-import-csv" style="font-size:0.95rem;padding:12px 20px">
+          Nahrát PDF z PPL → automaticky vyplnit emaily
+        </button>
+        <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku ručně</button>
         <button class="btn btn-outline btn-sm" id="btn-clear-rows">Vymazat vše</button>
         <input type="file" id="csv-file-input" accept=".csv,.pdf,.txt,.tsv,text/csv,application/pdf" style="display:none">
       </div>
       <div id="import-status" style="margin-top:12px;font-size:0.85rem"></div>
+
+      <details style="margin-top:16px;border-top:1px solid var(--gray-200);padding-top:12px">
+        <summary style="cursor:pointer;color:var(--gray-600);font-size:0.85rem;font-weight:600">Pokročilé možnosti</summary>
+        <div class="flex gap-8" style="flex-wrap:wrap;margin-top:10px">
+          <button class="btn btn-outline btn-sm" id="btn-paste-ppl">Vložit text z PPL</button>
+          <button class="btn btn-outline btn-sm" id="btn-enrich-ppl">Doplnit emaily pro existující řádky</button>
+          <button class="btn btn-outline btn-sm" id="btn-fetch-ppl">Načíst seznam z API (produkce)</button>
+          <button class="btn btn-outline btn-sm" id="btn-test-ppl">Test PPL přihlášení</button>
+          <button class="btn btn-outline btn-sm" id="btn-test-label">Vygenerovat testovací etiketu</button>
+        </div>
+        <div style="color:var(--gray-500);font-size:0.75rem;margin-top:8px">
+          Tyhle akce se běžně nepotřebují. Použij je jen pokud hlavní nahrávání PDF nefunguje nebo testuješ PPL produkční API.
+        </div>
+      </details>
     </div>`;
 
     html += `<div class="card mb-16" id="email-preview-section" style="display:none">
@@ -261,18 +272,22 @@ const Shipments = (() => {
     container.querySelector('#btn-enrich-ppl').addEventListener('click', () => enrichFromPPL(container));
   }
 
-  async function enrichFromPPL(container) {
+  async function enrichFromPPL(container, silent) {
     const statusEl = container.querySelector('#import-status');
     const btn = container.querySelector('#btn-enrich-ppl');
-    const trackings = rows.map(r => r.trackingNum).filter(t => t && t.length >= 8);
+    // Vynecháme ty, co už email mají (ať zbytečně netěžíme API)
+    const trackings = rows.map(r => r.trackingNum).filter((t, i) => t && t.length >= 8 && !rows[i].email);
     if (trackings.length === 0) {
-      statusEl.innerHTML = '<span style="color:var(--warning)">V tabulce nejsou žádná tracking čísla k doplnění.</span>';
+      if (!silent) {
+        statusEl.innerHTML = '<span style="color:var(--warning)">V tabulce není žádné tracking číslo bez emailu.</span>';
+      }
       return;
     }
 
-    btn.disabled = true;
-    btn.textContent = `Doplňuji emaily (${trackings.length}×)…`;
-    statusEl.innerHTML = `<span style="color:var(--gray-600)">Volám PPL API pro ${trackings.length} zásilek — chvíli to trvá…</span>`;
+    if (btn) { btn.disabled = true; btn.textContent = `Doplňuji (${trackings.length}×)…`; }
+    if (!silent) {
+      statusEl.innerHTML = `<span style="color:var(--gray-600)">Volám PPL API pro ${trackings.length} zásilek…</span>`;
+    }
 
     try {
       const fn = firebase.app().functions('europe-west1').httpsCallable('pplEnrichShipments');
@@ -280,49 +295,36 @@ const Shipments = (() => {
       const d = res.data || {};
 
       if (!d.ok) {
-        statusEl.innerHTML = `<span style="color:var(--danger)">Chyba: ${escapeHtml(d.error || 'neznámá')}</span>`;
+        statusEl.innerHTML = `<span style="color:var(--danger)">Chyba PPL: ${escapeHtml(d.error || 'neznámá')}</span>`;
         return;
       }
 
-      let filled = 0, notFound = 0;
-      const debugLines = [];
+      let filled = 0;
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
-        if (!r.trackingNum) continue;
+        if (!r.trackingNum || r.email) continue;
         const found = d.results && d.results[r.trackingNum];
         if (found && found.email) {
-          if (!r.email) {
-            r.email = found.email;
-            filled++;
-          }
-          // Pokud jsme z API získali lepší jméno a rows nemá, doplň
+          r.email = found.email;
           if (!r.name && found.name) r.name = found.name;
-        } else {
-          notFound++;
-          const dbg = d.debug && d.debug[r.trackingNum];
-          if (dbg && dbg.attempts) {
-            const attempt = dbg.attempts[0];
-            debugLines.push(`<div><code>${escapeHtml(r.trackingNum)}</code>: ${attempt ? 'HTTP ' + attempt.status : 'bez odpovědi'}</div>`);
-          }
+          filled++;
         }
       }
       renderRows(container);
 
-      let html = `<span style="color:var(--success)">Doplněno ${filled} emailů z PPL.</span>`;
-      if (notFound > 0) {
-        html += ` <span style="color:var(--warning)">${notFound} bez emailu — doplň ručně.</span>`;
-      }
-      if (debugLines.length) {
-        html += `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--gray-600)">Detaily selhání (${debugLines.length})</summary>
-          <div style="margin-top:4px;font-size:0.8rem">${debugLines.slice(0, 20).join('')}</div></details>`;
-      }
-      statusEl.innerHTML = html;
+      const total = rows.filter(r => r.trackingNum).length;
+      const withEmail = rows.filter(r => r.trackingNum && r.email).length;
+      const missing = total - withEmail;
+      statusEl.innerHTML = `<span style="color:var(--success)">Hotovo.</span>` +
+        ` Zásilek: ${total}. Emailů vyplněno: ${withEmail}.` +
+        (missing > 0
+          ? ` <span style="color:var(--warning)">${missing} stále bez emailu — doplň ručně a stiskni Odeslat.</span>`
+          : ` <span style="color:var(--success)">Vše připraveno k odeslání.</span>`);
     } catch (err) {
       console.error('enrich error', err);
       statusEl.innerHTML = `<span style="color:var(--danger)">Chyba: ${escapeHtml(err.message || err.code || String(err))}</span>`;
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Doplnit emaily z PPL';
+      if (btn) { btn.disabled = false; btn.textContent = 'Doplnit emaily pro existující řádky'; }
     }
   }
 
@@ -727,10 +729,16 @@ const Shipments = (() => {
       renderRows(container);
 
       const matchedCount = paired.filter(p => p.email).length;
-      const unmatched = paired.length - matchedCount;
       statusEl.innerHTML = `<span style="color:var(--success)">Naimportováno z PDF: ${paired.length} zásilek.</span>` +
-        ` <span style="color:var(--gray-700)">Z toho ${matchedCount} automaticky dohledáno v databázi klientů</span>` +
-        (unmatched > 0 ? `, <span style="color:var(--warning)">${unmatched} bez emailu — doplň ručně</span>.` : '.');
+        ` <span style="color:var(--gray-700)">Z klientské databáze dohledáno ${matchedCount} emailů.</span>` +
+        ` <span style="color:var(--gray-600)">Doplňuji zbylé emaily z PPL API…</span>`;
+
+      // Automaticky dotáhnout emaily z PPL pro ty, které je ještě nemají
+      try {
+        await enrichFromPPL(container, /* silent */ true);
+      } catch (e) {
+        console.warn('Auto-enrich failed:', e);
+      }
     } catch (err) {
       console.error('PDF parse error:', err);
       statusEl.innerHTML = `<span style="color:var(--danger)">Chyba při čtení PDF: ${escapeHtml(err.message || String(err))}</span>`;
