@@ -267,13 +267,26 @@ const Shipments = (() => {
       const c = createRes.data || {};
 
       if (!c.ok) {
-        const attempts = (c.attempts || []).map(a =>
-          `<div><code>${escapeHtml(a.path || '')}</code> (${(a.bodyKeys || []).join(', ')}) → HTTP ${a.status || '?'}</div>
-           <div style="color:var(--gray-600);margin-left:12px;font-size:0.8rem;word-break:break-all">${escapeHtml((a.response || '').slice(0, 500))}</div>`
-        ).join('');
+        const attempts = (c.attempts || []).slice(0, 8).map(a => {
+          const label = a.productType
+            ? `ProductType: <code>${escapeHtml(a.productType)}</code>`
+            : `<code>${escapeHtml(a.path || '(neznámá cesta)')}</code>`;
+          const ok = a.productTypeOk ? ' <span style="color:var(--success)">(ProductType prošel!)</span>' : '';
+          return `<div style="margin-top:4px">${label} → HTTP ${a.status || '?'}${ok}</div>
+           <div style="color:var(--gray-600);margin-left:12px;font-size:0.8rem;word-break:break-all">${escapeHtml((a.response || '').slice(0, 400))}</div>`;
+        }).join('');
+        const more = c.attempts && c.attempts.length > 8 ? `<div style="color:var(--gray-500);margin-top:4px">… a dalších ${c.attempts.length - 8} pokusů</div>` : '';
+        const schemaLine = c.schemaEnum && c.schemaEnum.length
+          ? `<div style="color:var(--gray-700);margin-top:6px">OpenAPI schema (${escapeHtml(c.schemaUrl || '')}) vrátilo enum: <code>${c.schemaEnum.map(x => escapeHtml(x)).join(', ')}</code></div>`
+          : '';
+        const validLine = c.validProductFound
+          ? `<div style="color:var(--success);margin-top:6px">Platný ProductType: <code>${escapeHtml(c.validProductFound)}</code> (selhala jiná pole)</div>`
+          : '';
         statusEl.innerHTML = `<span style="color:var(--danger)">Vytvoření testovací zásilky selhalo.</span>
           ${c.error ? `<div style="color:var(--gray-700);margin-top:6px"><strong>${escapeHtml(c.error)}</strong></div>` : ''}
-          ${attempts ? `<div style="margin-top:8px">${attempts}</div>` : ''}`;
+          ${schemaLine}
+          ${validLine}
+          ${attempts ? `<div style="margin-top:8px">${attempts}${more}</div>` : ''}`;
         return;
       }
 

@@ -844,33 +844,73 @@ exports.pplCreateTestShipment = onCall({
     const token = await pplGetAccessToken();
     const ref = `TEST-${Date.now()}`;
 
-    const userProduct = (request.data && request.data.productType) || null;
-    // PPL CPL API kódy produktů — zkusíme různé varianty, dokud validace projde
-    const productTypeVariants = userProduct ? [userProduct] : [
-      'PPLParcelCZBusiness',
-      'pplparcelczbusiness',
-      'PPL_PARCEL_CZ_BUSINESS',
-      'parcelCZbusiness',
-      'CZBusinessParcel',
-      'CZ_Business',
-      'Business',
-      'BUSINESSPARCEL',
-      'BUSB',
-      'BUSI',
-      'PRIVATE',
-      'PPLParcelCZPrivate',
-      'parcelCZprivate',
+    // Pokusíme se nejdřív stáhnout OpenAPI/Swagger schéma — z něj
+    // půjde přečíst přesný seznam platných hodnot ProductType.
+    const schemaUrls = [
+      '/swagger/v1/swagger.json',
+      '/swagger.json',
+      '/openapi.json',
+      '/api-docs',
+      '/api-docs/v1',
+      '/docs/swagger.json',
     ];
+    let schemaEnum = null, schemaUrl = null;
+    for (const sp of schemaUrls) {
+      try {
+        const url = new URL(baseUrl + sp);
+        const res = await httpRequest({
+          hostname: url.hostname,
+          path: url.pathname,
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        });
+        if (res.status >= 200 && res.status < 300 && res.body) {
+          try {
+            const schema = JSON.parse(res.body);
+            const found = findProductTypeEnum(schema);
+            if (found && found.length) {
+              schemaEnum = found;
+              schemaUrl = sp;
+              break;
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
+    const userProduct = (request.data && request.data.productType) || null;
+    const baseVariants = schemaEnum || [
+      // z portálu (s mezerami i bez)
+      'PPL Parcel CZ Business',
+      'PPL Parcel CZ Private',
+      'PPL Parcel CZ Smart',
+      'PPLParcelCZBusiness', 'PPLParcelCZPrivate', 'PPLParcelCZSmart',
+      'PPL_Parcel_CZ_Business', 'PPL_Parcel_CZ_Private', 'PPL_Parcel_CZ_Smart',
+      'PPLBusinessParcel', 'PPLPrivateParcel', 'PPLSmartParcel',
+      'parcelCZbusiness', 'parcelCZprivate', 'parcelCZsmart',
+      'CZBusinessParcel', 'CZPrivateParcel', 'CZSmartParcel',
+      'CZ_BUSINESS_PARCEL', 'CZ_PRIVATE_PARCEL', 'CZ_SMART_PARCEL',
+      'BusinessParcel', 'PrivateParcel', 'SmartParcel',
+      'Business', 'Private', 'Smart',
+      'BUSINESS', 'PRIVATE', 'SMART',
+      // staré PPL kódy (SOAP CPL)
+      'BUSB', 'BUSI', 'BUSP',
+      'CONN', 'PARD',
+      'CZB', 'CZP', 'CZS',
+      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+      '01', '02', '03', '04',
+    ];
+    const productTypeVariants = userProduct ? [userProduct] : baseVariants;
 
     const makeShipment = (productType) => ({
       referenceId: ref,
       productType,
-      note: 'TESTOVACÍ ZÁSILKA — neodesílat',
+      note: 'TESTOVACI ZASILKA - neodesilat',
       shipmentSet: { numberOfShipments: 1 },
       sender: {
         name: 'Concept Czech s.r.o.',
-        street: 'Jesenická 513',
-        city: 'Psáry - Dolní Jirčany',
+        street: 'Jesenicka 513',
+        city: 'Psary - Dolni Jircany',
         zipCode: '25244',
         country: 'CZ',
         contact: 'Petr Knobloch',
@@ -878,17 +918,15 @@ exports.pplCreateTestShipment = onCall({
         phone: '+420602554787',
       },
       recipient: {
-        name: 'Testovací příjemce',
-        street: 'Testovací 1',
+        name: 'Testovaci prijemce',
+        street: 'Testovaci 1',
         city: 'Praha',
         zipCode: '11000',
         country: 'CZ',
         email: 'test@conceptczech.cz',
         phone: '+420602554788',
       },
-      packages: [
-        { weight: 1.5, width: 20, length: 30, height: 15 },
-      ],
+      packages: [{ weight: 1.5, width: 20, length: 30, height: 15 }],
     });
 
     const attempts = [];
@@ -910,12 +948,13 @@ exports.pplCreateTestShipment = onCall({
       }, bodyStr);
 
       const responseText = String(res.body || '');
-      const productTypeStillInvalid = /ProductType/i.test(responseText) && /invalid|not.*defined|unknown|must.*be|allowed/i.test(responseText);
+      // Chyba ProductType je přítomná jen pokud ji API explicitně vypsalo
+      const productTypeStillInvalid = /shipments\[0\]\.ProductType/i.test(responseText);
 
       attempts.push({
         productType: pt,
         status: res.status,
-        response: responseText.slice(0, 700),
+        response: responseText.slice(0, 500),
         productTypeOk: !productTypeStillInvalid,
       });
 
@@ -931,10 +970,11 @@ exports.pplCreateTestShipment = onCall({
           raw: res.body,
           referenceId: ref,
           attempts,
+          schemaUrl,
+          schemaEnum,
         };
       }
 
-      // Pokud ProductType už není zmíněno v chybách, našli jsme validní hodnotu
       if (!productTypeStillInvalid && !validProductFound) {
         validProductFound = pt;
       }
@@ -943,9 +983,11 @@ exports.pplCreateTestShipment = onCall({
     return {
       ok: false,
       error: validProductFound
-        ? `ProductType '${validProductFound}' prošel validací, ale jiná pole ho blokují. Koukni na attempts.`
+        ? `ProductType '${validProductFound}' prošel validací, ale jiné pole selhává. Koukni na detail posledního pokusu.`
         : 'Žádná hodnota ProductType nebyla PPL přijata.',
       validProductFound,
+      schemaUrl,
+      schemaEnum,
       attempts,
     };
   } catch (e) {
@@ -953,6 +995,29 @@ exports.pplCreateTestShipment = onCall({
     return { ok: false, error: String(e.message || e), stack: String(e.stack || '').slice(0, 500) };
   }
 });
+
+// Projde OpenAPI/Swagger schéma a pokusí se najít seznam platných hodnot ProductType
+function findProductTypeEnum(schema) {
+  try {
+    const stack = [{ v: schema, key: '' }];
+    const seen = new WeakSet();
+    while (stack.length) {
+      const { v, key } = stack.pop();
+      if (!v || typeof v !== 'object') continue;
+      if (seen.has(v)) continue;
+      seen.add(v);
+      // Hledáme definici 'productType' s 'enum' seznamem
+      if (Array.isArray(v.enum) && /producttype/i.test(String(key))) {
+        return v.enum.map(String);
+      }
+      for (const k of Object.keys(v)) {
+        const val = v[k];
+        if (val && typeof val === 'object') stack.push({ v: val, key: k });
+      }
+    }
+  } catch (_) {}
+  return null;
+}
 
 // Callable: pokusí se získat PDF etiketu pro daný shipmentId / tracking.
 exports.pplGetLabel = onCall({
