@@ -736,17 +736,13 @@ exports.pplListShipments = onCall({
     const now = new Date();
     const fromDate = new Date(now); fromDate.setDate(now.getDate() - days + 1); fromDate.setHours(0, 0, 0, 0);
     const fmt = (d) => d.toISOString().slice(0, 10);
-    const fmtCz = (d) => d.toISOString().slice(0, 10).replace(/-/g, '') + 'T000000Z';
 
+    // PPL CPL API vyžaduje Limit a Offset. Zkoušíme s různými filtry dat.
+    const base = 'Limit=200&Offset=0';
     const candidates = [
-      `/shipment?DateFrom=${fmt(fromDate)}&DateTo=${fmt(now)}`,
-      `/shipment?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
-      `/shipment?CreatedFrom=${fmt(fromDate)}&CreatedTo=${fmt(now)}`,
-      `/shipment?From=${fmtCz(fromDate)}&To=${fmtCz(now)}`,
-      `/shipment/search?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
-      `/shipment-batch?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
-      `/shipment?limit=200`,
-      `/shipment`,
+      `/shipment?${base}&DateFrom=${fmt(fromDate)}&DateTo=${fmt(now)}`,
+      `/shipment?${base}&CreatedFrom=${fmt(fromDate)}&CreatedTo=${fmt(now)}`,
+      `/shipment?${base}`,
     ];
 
     const attempts = [];
