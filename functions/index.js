@@ -30,51 +30,48 @@ function escHtml(s) {
   return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function buildEmailHtml(subject, body, discount, icon) {
+function buildEmailHtml(subject, body, discount, label) {
   const bodyHtml = escHtml(body).replace(/\n/g, '<br>');
+  const labelHtml = label ? `
+    <div style="font-size:11px;color:#1e40af;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;font-weight:600">${escHtml(label)}</div>
+  ` : '';
   const discountHtml = discount ? (
-    '<div style="margin:28px 0;padding:32px 24px;background:#111111;text-align:center">' +
-      '<div style="font-size:10px;color:#9a8060;text-transform:uppercase;letter-spacing:5px;margin-bottom:14px;font-family:Arial,sans-serif">Váš slevový kód</div>' +
-      '<div style="font-size:42px;font-weight:400;color:#e8c96a;letter-spacing:10px;font-family:Georgia,serif">' + escHtml(discount) + '</div>' +
-      '<div style="margin:16px auto 0;width:60px;height:1px;background:#c9a84c"></div>' +
-      '<div style="font-size:11px;color:#888;margin-top:12px;letter-spacing:2px;font-family:Arial,sans-serif">Platnost 14 dní od doručení</div>' +
-    '</div>' +
-    '<div style="margin:0 0 32px 0;padding:20px 24px;background:#faf8f4;border-top:1px solid #e8dfc8;border-bottom:1px solid #e8dfc8;text-align:center">' +
-      '<div style="font-size:11px;color:#b8912a;margin-bottom:8px;letter-spacing:3px;text-transform:uppercase;font-family:Arial,sans-serif">Jak uplatnit slevu?</div>' +
-      '<div style="font-size:13px;color:#666;line-height:1.8;font-family:Arial,sans-serif">Sleva platí na Vaši příští objednávku.<br>Kontaktujte svého obchodního zástupce a sdělte mu tento kód —<br>rád Vám s objednávkou pomůže.</div>' +
-    '</div>'
+    '<table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0;background:#1e3a8a;border-radius:8px"><tr><td style="padding:28px 24px;text-align:center">' +
+      '<div style="font-size:11px;color:#93c5fd;text-transform:uppercase;letter-spacing:3px;margin-bottom:10px">Váš slevový kód</div>' +
+      '<div style="font-size:32px;font-weight:700;color:#fbbf24;letter-spacing:6px;font-family:ui-monospace,Menlo,Consolas,monospace">' + escHtml(discount) + '</div>' +
+      '<div style="font-size:11px;color:#cbd5e1;margin-top:10px;letter-spacing:1px">Platnost 14 dní od doručení</div>' +
+    '</td></tr></table>' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px"><tr><td style="padding:16px 20px;text-align:center">' +
+      '<div style="font-size:11px;color:#475569;margin-bottom:6px;letter-spacing:2px;text-transform:uppercase;font-weight:600">Jak uplatnit slevu</div>' +
+      '<div style="font-size:13px;color:#475569;line-height:1.7">Sleva platí na Vaši příští objednávku. Kontaktujte svého obchodního zástupce a sdělte mu tento kód.</div>' +
+    '</td></tr></table>'
   ) : '';
 
-  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>:root{color-scheme:light only}body{margin:0;padding:0;background:#f5f0e8 !important}.wrapper{background:#f5f0e8 !important}.card{background:#ffffff !important}.header{background:#111111 !important}.footer{background:#111111 !important}.body-cell{background:#ffffff !important}.cta-cell{background:#ffffff !important}@media(max-width:600px){.card{width:100% !important;border-radius:0 !important}.body-cell{padding:32px 24px 20px !important}.cta-cell{padding:8px 24px 28px !important}}</style></head>
-<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,'Times New Roman',serif">
-<table width="100%" cellpadding="0" cellspacing="0" class="wrapper" style="background:#f5f0e8;padding:40px 0"><tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,0.15)">
-<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
-<tr><td class="header" style="background:#111111;padding:44px 40px 36px;text-align:center">
-  <div style="font-size:10px;color:#9a8060;letter-spacing:6px;text-transform:uppercase;margin-bottom:14px;font-family:Arial,sans-serif">Jsme továrna na sny pro vaše vlasy</div>
-  <div style="font-size:38px;font-weight:400;color:#e8c96a;letter-spacing:8px;text-transform:uppercase;font-family:Georgia,serif">Concept Czech</div>
-  <div style="font-size:10px;color:#666;margin-top:8px;letter-spacing:4px;font-family:Arial,sans-serif">S.R.O.</div>
-  <div style="margin-top:24px;height:1px;background:linear-gradient(90deg,transparent,#c9a84c,transparent)"></div>
+  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>:root{color-scheme:light only}body{margin:0;padding:0;background:#f1f5f9 !important}@media(max-width:600px){.card{width:100% !important;border-radius:0 !important}.body-cell{padding:28px 20px !important}}</style></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.08)">
+<tr><td style="background:#fbbf24;height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+<tr><td style="background:#1e3a8a;padding:28px 32px">
+  <div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;text-transform:uppercase">Concept Czech</div>
+  <div style="color:#93c5fd;font-size:12px;letter-spacing:1px;margin-top:4px">Velkoobchod pro kadeřníky</div>
 </td></tr>
-<tr><td class="header" style="background:#111111;padding:20px 40px 32px;text-align:center">
-  <div style="font-size:56px;line-height:1">${icon}</div>
-</td></tr>
-<tr><td class="body-cell" style="padding:48px 48px 32px;text-align:center;background:#ffffff">
-  <div style="height:1px;background:linear-gradient(90deg,transparent,#d4af5a,transparent);margin-bottom:36px"></div>
-  <h1 style="font-size:22px;color:#1a1a1a;margin:0 0 24px 0;font-weight:400;text-align:center;letter-spacing:3px;text-transform:uppercase;font-family:Georgia,serif">${escHtml(subject)}</h1>
-  <div style="font-size:15px;line-height:2;color:#444;margin-bottom:32px;text-align:center;font-family:Arial,sans-serif">${bodyHtml}</div>
+<tr><td class="body-cell" style="padding:36px 40px 28px;background:#ffffff">
+  ${labelHtml}
+  <h1 style="font-size:22px;color:#0f172a;margin:0 0 20px 0;font-weight:700;letter-spacing:0.3px">${escHtml(subject)}</h1>
+  <div style="font-size:15px;line-height:1.8;color:#334155;margin-bottom:24px">${bodyHtml}</div>
   ${discountHtml}
-</td></tr>
-<tr><td class="cta-cell" style="padding:8px 48px 40px;text-align:center;background:#ffffff">
-  <a href="https://www.conceptczech.cz" style="display:inline-block;background:#111111;color:#e8c96a;text-decoration:none;font-size:12px;padding:16px 40px;letter-spacing:4px;text-transform:uppercase;font-family:Arial,sans-serif">Navštívit náš web</a>
-</td></tr>
-<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
-<tr><td class="footer" style="background:#111111;padding:28px 40px;text-align:center">
-  <div style="font-size:11px;color:#c9a84c;margin-bottom:8px;letter-spacing:4px;text-transform:uppercase;font-family:Arial,sans-serif">Concept Czech s.r.o.</div>
-  <div style="font-size:11px;color:#555;line-height:2;font-family:Arial,sans-serif">
-    podpora@conceptczech.cz<br>
-    <a href="https://www.conceptczech.cz" style="color:#9a8060;text-decoration:none;letter-spacing:2px">www.conceptczech.cz</a>
+  <div style="text-align:center;margin-top:4px">
+    <a href="https://www.conceptczech.cz" style="display:inline-block;background:#1e40af;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 28px;border-radius:6px;letter-spacing:0.5px">Navštívit náš web</a>
   </div>
+</td></tr>
+<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center">
+  <div style="font-size:12px;color:#475569">
+    <a href="mailto:podpora@conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">podpora@conceptczech.cz</a>
+    &nbsp;·&nbsp;
+    <a href="https://www.conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">www.conceptczech.cz</a>
+  </div>
+  <div style="font-size:11px;color:#94a3b8;margin-top:8px">Concept Czech s.r.o. · Jesenická 513, 252 44 Psáry - Dolní Jirčany</div>
 </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -112,53 +109,58 @@ function sendBrevoEmail(to, toName, subject, htmlContent) {
 function buildApprovalEmail(pendingId, birthday, nameday, baseUrl) {
   const approveUrl = `${baseUrl}/approveCelebrants?id=${pendingId}`;
 
+  const rowStyle = 'padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a';
+  const badgeBirthday = '<span style="display:inline-block;padding:3px 10px;background:#fef3c7;color:#b45309;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.5px">NAROZENINY</span>';
+  const badgeNameday  = '<span style="display:inline-block;padding:3px 10px;background:#dbeafe;color:#1e40af;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.5px">SVÁTEK</span>';
+
   let rows = '';
   birthday.forEach(c => {
     rows += `<tr>
-      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px">${escHtml(c.name)}</td>
-      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center">🎂 Narozeniny</td>
-      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center;color:#b8912a;font-weight:700">BDAY10 (10%)</td>
+      <td style="${rowStyle}">${escHtml(c.name)}</td>
+      <td style="${rowStyle};text-align:center">${badgeBirthday}</td>
+      <td style="${rowStyle};text-align:center;color:#1e40af;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace">BDAY10 (10 %)</td>
     </tr>`;
   });
   nameday.forEach(c => {
     rows += `<tr>
-      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px">${escHtml(c.name)}</td>
-      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center">🌸 Svátek</td>
-      <td style="padding:10px 16px;border-bottom:1px solid #f0e8d8;font-family:Arial,sans-serif;font-size:14px;text-align:center;color:#b8912a;font-weight:700">SVATEK5 (5%)</td>
+      <td style="${rowStyle}">${escHtml(c.name)}</td>
+      <td style="${rowStyle};text-align:center">${badgeNameday}</td>
+      <td style="${rowStyle};text-align:center;color:#1e40af;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace">SVATEK5 (5 %)</td>
     </tr>`;
   });
 
-  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><style>body{margin:0;padding:0;background:#f5f0e8;font-family:Arial,sans-serif}</style></head>
-<body style="margin:0;padding:0;background:#f5f0e8">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:40px 0"><tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,0.15)">
-<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
-<tr><td style="background:#111111;padding:36px 40px;text-align:center">
-  <div style="font-size:10px;color:#9a8060;letter-spacing:6px;text-transform:uppercase;margin-bottom:10px">Interní notifikace</div>
-  <div style="font-size:32px;font-weight:400;color:#e8c96a;letter-spacing:6px;text-transform:uppercase;font-family:Georgia,serif">Concept Czech</div>
-  <div style="margin-top:20px;height:1px;background:linear-gradient(90deg,transparent,#c9a84c,transparent)"></div>
+  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><style>body{margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a}</style></head>
+<body style="margin:0;padding:0;background:#f1f5f9">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.08)">
+<tr><td style="background:#fbbf24;height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+<tr><td style="background:#1e3a8a;padding:28px 32px">
+  <div style="color:#93c5fd;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:600">Interní notifikace</div>
+  <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px">Dnešní oslavenci ke schválení</div>
 </td></tr>
-<tr><td style="padding:40px 40px 32px;background:#ffffff">
-  <h1 style="font-size:20px;color:#111111;font-weight:700;margin:0 0 8px 0;text-align:center">Dnešní oslavenci — ke schválení</h1>
-  <p style="font-size:14px;color:#666;text-align:center;margin:0 0 28px 0">Zkontrolujte seznam a klikněte na tlačítko pro odeslání blahopřání.</p>
-  <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8dfc8;border-radius:8px;overflow:hidden;margin-bottom:32px">
+<tr><td style="padding:32px 32px 24px;background:#ffffff">
+  <p style="font-size:14px;color:#475569;margin:0 0 24px 0">Zkontrolujte seznam a klikněte na tlačítko pro odeslání blahopřání.</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:28px">
     <thead>
-      <tr style="background:#f5f0e8">
-        <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px">Salon</th>
-        <th style="padding:10px 16px;text-align:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px">Typ</th>
-        <th style="padding:10px 16px;text-align:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:2px">Sleva</th>
+      <tr style="background:#f8fafc">
+        <th style="padding:10px 16px;text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Salon</th>
+        <th style="padding:10px 16px;text-align:center;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Typ</th>
+        <th style="padding:10px 16px;text-align:center;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Sleva</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>
   <div style="text-align:center">
-    <a href="${approveUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c,#f0c040);color:#111111;text-decoration:none;font-size:13px;font-weight:800;padding:18px 48px;border-radius:6px;letter-spacing:3px;text-transform:uppercase">✓ Schválit a odeslat emaily</a>
+    <a href="${approveUrl}" style="display:inline-block;background:#1e40af;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:14px 36px;border-radius:6px;letter-spacing:0.5px">Schválit a odeslat emaily</a>
   </div>
-  <p style="font-size:12px;color:#aaa;text-align:center;margin:20px 0 0 0">Stačí kliknout jednou — klidně kdokoliv z vás.</p>
+  <p style="font-size:12px;color:#94a3b8;text-align:center;margin:20px 0 0 0">Stačí kliknout jednou — kdokoliv z vás.</p>
 </td></tr>
-<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>
-<tr><td style="background:#111111;padding:20px 40px;text-align:center">
-  <div style="font-size:11px;color:#555;line-height:2">podpora@conceptczech.cz &nbsp;|&nbsp; <a href="https://www.conceptczech.cz" style="color:#9a8060;text-decoration:none">www.conceptczech.cz</a></div>
+<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 32px;text-align:center">
+  <div style="font-size:12px;color:#475569">
+    <a href="mailto:podpora@conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">podpora@conceptczech.cz</a>
+    &nbsp;·&nbsp;
+    <a href="https://www.conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">www.conceptczech.cz</a>
+  </div>
 </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -199,7 +201,7 @@ exports.dailyCelebrantsEmail = onSchedule({
 
   const baseUrl = 'https://europe-west1-concept-czech-hq.cloudfunctions.net';
   const approvalHtml = buildApprovalEmail(pendingRef.id, birthday, nameday, baseUrl);
-  const subject = `🎉 Dnešní oslavenci ke schválení (${birthday.length + nameday.length} osob)`;
+  const subject = `Dnešní oslavenci ke schválení (${birthday.length + nameday.length} osob)`;
 
   // Pošli schvalovací email všem 3
   for (const approver of APPROVERS) {
@@ -235,10 +237,13 @@ exports.approveCelebrants = onRequest({
 
   if (data.approved) {
     res.status(200).send(`
-      <html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;background:#f5f0e8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-      .box{background:#fff;border-radius:8px;padding:40px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.1);max-width:400px}
-      h2{color:#b8912a}p{color:#666}</style></head>
-      <body><div class="box"><h2>✓ Již odesláno</h2><p>Emaily byly dříve schváleny a odeslány.</p></div></body></html>
+      <html><head><meta charset="UTF-8"><title>Již odesláno · Concept Czech</title><style>
+        body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f1f5f9;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+        .box{background:#fff;border-radius:10px;padding:40px;text-align:center;box-shadow:0 8px 24px rgba(15,23,42,0.08);max-width:420px;border-top:4px solid #fbbf24}
+        h2{color:#1e40af;margin:0 0 8px;font-size:22px}
+        p{color:#475569;margin:0}
+      </style></head>
+      <body><div class="box"><h2>Již odesláno</h2><p>Emaily byly dříve schváleny a odeslány.</p></div></body></html>
     `);
     return;
   }
@@ -253,7 +258,7 @@ exports.approveCelebrants = onRequest({
     const name = c.contactPerson || c.name;
     const subject = 'Všechno nejlepší k narozeninám!';
     const body = `Milý/á ${name},\n\npřejeme Vám krásný narozeninový den plný radosti a pohody.\nJako dárek od nás máte 10% slevu navíc na Vaši příští objednávku.`;
-    const html = buildEmailHtml(subject, body, 'BDAY10', '🎂');
+    const html = buildEmailHtml(subject, body, 'BDAY10', 'Narozeninové přání');
     try {
       const r = await sendBrevoEmail(c.email, name, subject, html);
       if (r.status < 300) {
@@ -268,7 +273,7 @@ exports.approveCelebrants = onRequest({
     const name = c.contactPerson || c.name;
     const subject = 'Všechno nejlepší ke svátku!';
     const body = `Milý/á ${name},\n\npřejeme Vám krásný sváteční den plný pohody a radosti.\nJako dárek od nás máte 5% slevu navíc na Vaši příští objednávku.`;
-    const html = buildEmailHtml(subject, body, 'SVATEK5', '🌸');
+    const html = buildEmailHtml(subject, body, 'SVATEK5', 'Přání ke svátku');
     try {
       const r = await sendBrevoEmail(c.email, name, subject, html);
       if (r.status < 300) {
@@ -279,16 +284,21 @@ exports.approveCelebrants = onRequest({
   }
 
   res.status(200).send(`
-    <html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;background:#f5f0e8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-    .box{background:#fff;border-radius:8px;padding:48px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.1);max-width:440px}
-    h2{color:#b8912a;font-size:24px;margin-bottom:12px}.count{font-size:48px;font-weight:700;color:#111;margin:16px 0}.label{color:#888;font-size:14px}
-    .err{color:#c62828;font-size:13px;margin-top:8px}</style></head>
+    <html><head><meta charset="UTF-8"><title>Emaily odeslány · Concept Czech</title><style>
+      body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f1f5f9;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+      .box{background:#fff;border-radius:10px;padding:40px;text-align:center;box-shadow:0 8px 24px rgba(15,23,42,0.08);max-width:440px;border-top:4px solid #fbbf24}
+      h2{color:#1e40af;font-size:22px;margin:0 0 12px}
+      .count{font-size:56px;font-weight:700;color:#0f172a;margin:12px 0;letter-spacing:-1px}
+      .label{color:#475569;font-size:14px}
+      .err{color:#dc2626;font-size:13px;margin-top:12px;background:#fee2e2;padding:8px 12px;border-radius:6px}
+      p{color:#64748b;font-size:13px;margin-top:20px}
+    </style></head>
     <body><div class="box">
-      <h2>✓ Emaily odeslány!</h2>
+      <h2>Emaily odeslány</h2>
       <div class="count">${sent}</div>
       <div class="label">kadeřníků dostalo blahopřání</div>
       ${errors > 0 ? `<div class="err">${errors} chyb při odesílání</div>` : ''}
-      <p style="color:#666;font-size:13px;margin-top:20px">Vše bylo zaznamenáno v historii emailů.</p>
+      <p>Vše bylo zaznamenáno v historii emailů.</p>
     </div></body></html>
   `);
 });
@@ -490,55 +500,70 @@ function pplNormalizeStatus(apiResponse) {
   };
 }
 
-function buildHandoverEmailHtml(trackingNum, orderNum) {
+function buildShipmentMail(trackingNum, orderNum, opts) {
   const trackingUrl = `https://www.ppl.cz/vyhledat-zasilku?parcelNumber=${encodeURIComponent(trackingNum)}`;
-  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 0"><tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">
-<tr><td style="background:#1a1a1a;padding:24px 32px;text-align:center">
-<div style="color:#c9a84c;font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase">CONCEPT CZECH</div>
-<div style="color:#888;font-size:11px;letter-spacing:2px;margin-top:6px">Jsme továrna na sny pro vaše vlasy</div>
+  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.08)">
+<tr><td style="background:#fbbf24;height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+<tr><td style="background:#1e3a8a;padding:28px 32px">
+  <div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;text-transform:uppercase">Concept Czech</div>
+  <div style="color:#93c5fd;font-size:12px;letter-spacing:1px;margin-top:4px">Velkoobchod pro kadeřníky</div>
 </td></tr>
 <tr><td style="background:#ffffff;padding:32px">
-<p style="color:#333;font-size:16px;margin:0 0 16px">Dobrý den,</p>
-<p style="color:#333;font-size:15px;line-height:1.7;margin:0 0 20px">🚚 Dnes jsme vyexpedovali Vaši objednávku${orderNum ? ` č. <strong>${orderNum}</strong>` : ''}.</p>
-<p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 20px">Objednávky v rámci ČR doručujeme <strong>následující pracovní den</strong>. Pro Slovensko o den později. Číslo zásilky a odkaz na sledování naleznete níže:</p>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:8px;margin:24px 0"><tr><td style="padding:20px 24px">
-<div style="color:#c9a84c;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Sledování zásilky</div>
-<div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:2px;margin-bottom:16px">📦 ${trackingNum}</div>
-<a href="${trackingUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c,#f0d080);color:#1a1a1a;text-decoration:none;padding:10px 24px;border-radius:4px;font-size:13px;font-weight:700;letter-spacing:1px">🔗 Sledovat zásilku online</a>
-</td></tr></table>
-<p style="color:#333;font-size:15px;line-height:1.7;margin:24px 0 0">🙏 Moc děkujeme za Vaši objednávku a přejeme krásný den. 🌞</p>
+  <p style="color:#0f172a;font-size:16px;margin:0 0 16px">Dobrý den,</p>
+  <p style="color:#0f172a;font-size:15px;line-height:1.7;margin:0 0 20px">${opts.lead}${orderNum ? ` č. <strong>${orderNum}</strong>` : ''}.</p>
+  <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 20px">${opts.intro}</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:24px 0"><tr><td style="padding:20px 24px">
+    <div style="color:#64748b;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Číslo zásilky</div>
+    <div style="color:#0f172a;font-size:22px;font-weight:700;letter-spacing:1px;margin-bottom:16px;font-family:ui-monospace,Menlo,Consolas,monospace">${trackingNum}</div>
+    <a href="${trackingUrl}" style="display:inline-block;background:#1e40af;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:0.5px">Sledovat zásilku online</a>
+  </td></tr></table>
+  <p style="color:#0f172a;font-size:15px;line-height:1.7;margin:24px 0 0">${opts.closing}</p>
 </td></tr>
-<tr><td style="background:#1a1a1a;padding:20px 32px;text-align:center;color:#888;font-size:12px">
-<a href="mailto:podpora@conceptczech.cz" style="color:#c9a84c;text-decoration:none">podpora@conceptczech.cz</a> · <a href="https://www.conceptczech.cz" style="color:#c9a84c;text-decoration:none">www.conceptczech.cz</a>
+<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 32px;text-align:center">
+  <div style="color:#475569;font-size:12px">
+    <a href="mailto:podpora@conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">podpora@conceptczech.cz</a>
+    &nbsp;·&nbsp;
+    <a href="https://www.conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">www.conceptczech.cz</a>
+  </div>
+  <div style="color:#94a3b8;font-size:11px;margin-top:6px">Concept Czech s.r.o. · Jesenická 513, 252 44 Psáry - Dolní Jirčany</div>
 </td></tr>
 </table></td></tr></table></body></html>`;
 }
 
+function buildHandoverEmailHtml(trackingNum, orderNum) {
+  return buildShipmentMail(trackingNum, orderNum, {
+    lead: 'dnes jsme vyexpedovali Vaši objednávku',
+    intro: 'Objednávky v rámci ČR standardně doručujeme <strong>následující pracovní den</strong>. Pro Slovensko počítejte prosím s doručením o jeden pracovní den později. Číslo zásilky a odkaz na sledování naleznete níže:',
+    closing: 'Děkujeme za Vaši objednávku a přejeme krásný den.',
+  });
+}
+
 function buildDeliveryDayEmailHtml(trackingNum, orderNum) {
   const trackingUrl = `https://www.ppl.cz/vyhledat-zasilku?parcelNumber=${encodeURIComponent(trackingNum)}`;
-  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0e8;padding:32px 0"><tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">
-<tr><td style="background:#1a1a1a;padding:24px 32px;text-align:center">
-<div style="color:#c9a84c;font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase">CONCEPT CZECH</div>
+  return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.08)">
+<tr><td style="background:#fbbf24;height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+<tr><td style="background:#1e3a8a;padding:28px 32px">
+  <div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;text-transform:uppercase">Concept Czech</div>
 </td></tr>
 <tr><td style="background:#ffffff;padding:32px">
-<p style="color:#333;font-size:16px;margin:0 0 16px">Dobrý den,</p>
-<p style="color:#333;font-size:15px;line-height:1.7;margin:0 0 20px">📬 Vaše objednávka${orderNum ? ` č. <strong>${orderNum}</strong>` : ''} bude dnes doručena.</p>
-<p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 20px">Balík právě předáváme kurýrovi a během dnešního dne k Vám dorazí. Přesnější čas doručení najdete v online sledování:</p>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:8px;margin:24px 0"><tr><td style="padding:20px 24px">
-<div style="color:#c9a84c;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Sledování zásilky</div>
-<div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:2px;margin-bottom:16px">📦 ${trackingNum}</div>
-<a href="${trackingUrl}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c,#f0d080);color:#1a1a1a;text-decoration:none;padding:10px 24px;border-radius:4px;font-size:13px;font-weight:700;letter-spacing:1px">🔗 Sledovat zásilku online</a>
+<p style="color:#0f172a;font-size:16px;margin:0 0 16px">Dobrý den,</p>
+<p style="color:#0f172a;font-size:15px;line-height:1.7;margin:0 0 20px">Vaše objednávka${orderNum ? ` č. <strong>${orderNum}</strong>` : ''} bude dnes doručena.</p>
+<p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 20px">Balík je v rukou kurýra a během dnešního dne k Vám dorazí. Přesnější čas doručení najdete v online sledování:</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:24px 0"><tr><td style="padding:20px 24px">
+<div style="color:#64748b;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Číslo zásilky</div>
+<div style="color:#0f172a;font-size:22px;font-weight:700;letter-spacing:1px;margin-bottom:16px;font-family:ui-monospace,Menlo,Consolas,monospace">${trackingNum}</div>
+<a href="${trackingUrl}" style="display:inline-block;background:#1e40af;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:0.5px">Sledovat zásilku online</a>
 </td></tr></table>
-<p style="color:#333;font-size:15px;line-height:1.7;margin:24px 0 0">🙏 Děkujeme za Vaši důvěru a přejeme krásný den. 🌞</p>
+<p style="color:#0f172a;font-size:15px;line-height:1.7;margin:24px 0 0">Děkujeme za Vaši důvěru a přejeme krásný den.</p>
 </td></tr>
-<tr><td style="background:#1a1a1a;padding:20px 32px;text-align:center;color:#888;font-size:12px">
-<a href="mailto:podpora@conceptczech.cz" style="color:#c9a84c;text-decoration:none">podpora@conceptczech.cz</a> · <a href="https://www.conceptczech.cz" style="color:#c9a84c;text-decoration:none">www.conceptczech.cz</a>
+<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 32px;text-align:center;color:#475569;font-size:12px">
+<a href="mailto:podpora@conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">podpora@conceptczech.cz</a> · <a href="https://www.conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">www.conceptczech.cz</a>
 </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -549,7 +574,7 @@ async function maybeSendStatusEmail(docRef, shipment, status) {
 
   if (status === 'handed_to_courier' && !shipment.emailHandoverSentAt) {
     const html = buildHandoverEmailHtml(shipment.trackingNum, shipment.orderNum || '');
-    const subject = `🚚 Vaše objednávka${shipment.orderNum ? ` č. ${shipment.orderNum}` : ''} byla expedována`;
+    const subject = `Vaše objednávka${shipment.orderNum ? ` č. ${shipment.orderNum}` : ''} byla expedována`;
     const r = await sendBrevoEmail(shipment.recipientEmail, shipment.recipientName || '', subject, html);
     if (r.status < 300) {
       updates.emailHandoverSentAt = admin.firestore.FieldValue.serverTimestamp();
@@ -569,7 +594,7 @@ async function maybeSendStatusEmail(docRef, shipment, status) {
 
   if (status === 'out_for_delivery' && !shipment.emailDeliveryDaySentAt) {
     const html = buildDeliveryDayEmailHtml(shipment.trackingNum, shipment.orderNum || '');
-    const subject = `📬 Vaše objednávka${shipment.orderNum ? ` č. ${shipment.orderNum}` : ''} bude dnes doručena`;
+    const subject = `Vaše objednávka${shipment.orderNum ? ` č. ${shipment.orderNum}` : ''} bude dnes doručena`;
     const r = await sendBrevoEmail(shipment.recipientEmail, shipment.recipientName || '', subject, html);
     if (r.status < 300) {
       updates.emailDeliveryDaySentAt = admin.firestore.FieldValue.serverTimestamp();

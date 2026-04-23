@@ -9,14 +9,14 @@ const OzShipments = (() => {
   let filterStatus = '';
 
   const STATUS_LABELS = {
-    created:           { emoji: '📝', text: 'Vytvořeno',        color: '#888' },
-    handed_to_courier: { emoji: '🚚', text: 'Předáno dopravci', color: '#c9a84c' },
-    in_transit:        { emoji: '🚛', text: 'V přepravě',        color: '#1976d2' },
-    out_for_delivery:  { emoji: '📬', text: 'Dnes doručeno',     color: '#2e7d32' },
-    delivered:         { emoji: '✅', text: 'Doručeno',          color: '#2e7d32' },
-    returned:          { emoji: '↩️', text: 'Vráceno',           color: '#c62828' },
-    problem:           { emoji: '⚠️', text: 'Problém',           color: '#f57c00' },
-    unknown:           { emoji: '❓', text: 'Neznámý',           color: '#888' },
+    created:           { text: 'Vytvořeno',        color: '#64748b' },
+    handed_to_courier: { text: 'Předáno dopravci', color: '#d97706' },
+    in_transit:        { text: 'V přepravě',        color: '#1e40af' },
+    out_for_delivery:  { text: 'Dnes doručeno',     color: '#047857' },
+    delivered:         { text: 'Doručeno',          color: '#047857' },
+    returned:          { text: 'Vráceno',           color: '#dc2626' },
+    problem:           { text: 'Problém',           color: '#b45309' },
+    unknown:           { text: 'Neznámý',           color: '#94a3b8' },
   };
 
   function render() {
@@ -32,7 +32,7 @@ const OzShipments = (() => {
     // Jméno pro filtrování — porovnává se s polem oz na zásilce
     const myName = (profile.displayName || '').trim();
 
-    let html = `<h1 class="page-title">💼 Zásilky mých klientů</h1>`;
+    let html = `<h1 class="page-title">Zásilky mých klientů</h1>`;
 
     html += `<div class="card mb-16">
       <div style="font-size:0.9rem;color:var(--gray-600);margin-bottom:12px">
@@ -40,10 +40,10 @@ const OzShipments = (() => {
         Stav se aktualizuje automaticky každých 30 minut.
       </div>
       <div class="flex gap-8" style="flex-wrap:wrap">
-        <input id="oz-filter-text" class="form-input" placeholder="🔍 Hledat tracking, klient, email, objednávka…" style="flex:1;min-width:200px">
+        <input id="oz-filter-text" class="form-input" placeholder="Hledat tracking, klient, email, objednávka…" style="flex:1;min-width:200px">
         <select id="oz-filter-status" class="form-select" style="max-width:220px">
           <option value="">Všechny stavy</option>
-          ${Object.entries(STATUS_LABELS).map(([k, v]) => `<option value="${k}">${v.emoji} ${v.text}</option>`).join('')}
+          ${Object.entries(STATUS_LABELS).map(([k, v]) => `<option value="${k}">${v.text}</option>`).join('')}
         </select>
       </div>
     </div>`;
@@ -108,17 +108,19 @@ const OzShipments = (() => {
       const st = STATUS_LABELS[r.pplStatus] || STATUS_LABELS.unknown;
       const trackingUrl = `https://www.ppl.cz/vyhledat-zasilku?parcelNumber=${encodeURIComponent(r.trackingNum)}`;
       html += `<tr>
-        <td><span style="display:inline-block;padding:3px 8px;border-radius:4px;background:${st.color}20;color:${st.color};font-weight:700;font-size:0.8rem;white-space:nowrap">${st.emoji} ${st.text}</span></td>
+        <td><span class="status-badge" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:${st.color}15;color:${st.color};font-weight:600;font-size:0.78rem;white-space:nowrap;letter-spacing:0.02em">
+          <span style="width:6px;height:6px;border-radius:50%;background:${st.color};display:inline-block"></span>${st.text}
+        </span></td>
         <td>${escapeHtml(r.clientName || '—')}</td>
         <td>
           <div>${escapeHtml(r.recipientName || '')}</div>
           <div style="font-size:0.75rem;color:var(--gray-500)">${escapeHtml(r.recipientEmail || '')}</div>
         </td>
         <td>${escapeHtml(r.orderNum || '—')}</td>
-        <td><strong>${escapeHtml(r.trackingNum || '')}</strong></td>
+        <td style="font-family:ui-monospace,Menlo,Consolas,monospace"><strong>${escapeHtml(r.trackingNum || '')}</strong></td>
         <td style="white-space:nowrap">${formatDate(r.emailHandoverSentAt || r.createdAt)}</td>
         <td style="white-space:nowrap;font-size:0.75rem;color:var(--gray-500)">${formatDate(r.pplLastSyncAt) || '—'}</td>
-        <td><a href="${trackingUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-outline">Sledovat →</a></td>
+        <td><a href="${trackingUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-outline">Sledovat</a></td>
       </tr>`;
     });
 

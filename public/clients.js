@@ -851,26 +851,28 @@ const Clients = (() => {
   function buildEmailHTML(subject, body, discount, emailType) {
     var bodyHtml = esc(body).replace(/\n/g, '<br>');
 
-    // Pick emoji + accent color by type
-    var icon = '✉️';
-    var accentBorder = '#c9a84c';
-    if (emailType === 'birthday') { icon = '🎂'; }
-    else if (emailType === 'nameday') { icon = '🌸'; }
-    else if (emailType === 'promo') { icon = '🎁'; }
+    var label = '';
+    if (emailType === 'birthday') label = 'Narozeninové přání';
+    else if (emailType === 'nameday') label = 'Přání ke svátku';
+    else if (emailType === 'promo') label = 'Speciální nabídka';
+    else if (emailType === 'newsletter') label = 'Novinky';
+
+    var labelHtml = label
+      ? '<div style="font-size:11px;color:#1e40af;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;font-weight:600">' + esc(label) + '</div>'
+      : '';
 
     var discountHtml = '';
     if (discount) {
       discountHtml =
-        '<div style="margin:28px 0;padding:32px 24px;background:#111111;text-align:center">' +
-          '<div style="font-size:10px;color:#9a8060;text-transform:uppercase;letter-spacing:5px;margin-bottom:14px;font-family:Arial,sans-serif">Váš slevový kód</div>' +
-          '<div style="font-size:42px;font-weight:400;color:#e8c96a;letter-spacing:10px;font-family:Georgia,serif">' + esc(discount) + '</div>' +
-          '<div style="margin:16px auto 0;width:60px;height:1px;background:linear-gradient(90deg,transparent,#c9a84c,transparent)"></div>' +
-          '<div style="font-size:11px;color:#666;margin-top:12px;letter-spacing:2px;font-family:Arial,sans-serif">Platnost 14 dní od doručení</div>' +
-        '</div>' +
-        '<div style="margin:0 0 32px 0;padding:20px 24px;background:#faf8f4;border-top:1px solid #e8dfc8;border-bottom:1px solid #e8dfc8;text-align:center">' +
-          '<div style="font-size:11px;color:#b8912a;font-weight:400;margin-bottom:8px;letter-spacing:3px;text-transform:uppercase;font-family:Arial,sans-serif">Jak uplatnit slevu?</div>' +
-          '<div style="font-size:13px;color:#666;line-height:1.8;font-family:Arial,sans-serif">Sleva platí na Vaši příští objednávku.<br>Kontaktujte svého obchodního zástupce a sdělte mu tento kód —<br>rád Vám s objednávkou pomůže.</div>' +
-        '</div>';
+        '<table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0;background:#1e3a8a;border-radius:8px"><tr><td style="padding:28px 24px;text-align:center">' +
+          '<div style="font-size:11px;color:#93c5fd;text-transform:uppercase;letter-spacing:3px;margin-bottom:10px">Váš slevový kód</div>' +
+          '<div style="font-size:32px;font-weight:700;color:#fbbf24;letter-spacing:6px;font-family:ui-monospace,Menlo,Consolas,monospace">' + esc(discount) + '</div>' +
+          '<div style="font-size:11px;color:#cbd5e1;margin-top:10px;letter-spacing:1px">Platnost 14 dní od doručení</div>' +
+        '</td></tr></table>' +
+        '<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px"><tr><td style="padding:16px 20px;text-align:center">' +
+          '<div style="font-size:11px;color:#475569;margin-bottom:6px;letter-spacing:2px;text-transform:uppercase;font-weight:600">Jak uplatnit slevu</div>' +
+          '<div style="font-size:13px;color:#475569;line-height:1.7">Sleva platí na Vaši příští objednávku. Kontaktujte svého obchodního zástupce a sdělte mu tento kód.</div>' +
+        '</td></tr></table>';
     }
 
     return '<!DOCTYPE html>' +
@@ -880,64 +882,42 @@ const Clients = (() => {
       '<title>' + esc(subject) + '</title>' +
       '<style>' +
       ':root { color-scheme: light only; }' +
-      'body { margin:0;padding:0;background:#f5f0e8 !important; }' +
-      '.wrapper { background:#f5f0e8 !important; }' +
-      '.card { background:#ffffff !important; }' +
-      '.header { background:#111111 !important; }' +
-      '.footer { background:#111111 !important; }' +
-      '.body-cell { background:#ffffff !important; }' +
-      '.cta-cell { background:#ffffff !important; }' +
+      'body { margin:0;padding:0;background:#f1f5f9 !important; }' +
       '@media (max-width:600px) {' +
       '  .card { width:100% !important; border-radius:0 !important; }' +
-      '  .body-cell { padding:32px 24px 20px !important; }' +
-      '  .cta-cell { padding:8px 24px 28px !important; }' +
+      '  .body-cell { padding:28px 20px !important; }' +
       '}' +
       '</style>' +
       '</head>' +
-      '<body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,\'Times New Roman\',serif">' +
-      '<table width="100%" cellpadding="0" cellspacing="0" class="wrapper" style="background:#f5f0e8;padding:40px 0">' +
+      '<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a">' +
+      '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0">' +
       '<tr><td align="center">' +
-      '<table width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,0.15)">' +
-
-      // Top gold line
-      '<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>' +
-
-      // Header — černý s gold textem
-      '<tr><td style="background:#111111;padding:44px 40px 36px;text-align:center">' +
-      '<div style="font-size:10px;color:#9a8060;letter-spacing:6px;text-transform:uppercase;margin-bottom:14px;font-family:Arial,sans-serif">Jsme továrna na sny pro vaše vlasy</div>' +
-      '<div style="font-size:38px;font-weight:400;color:#e8c96a;letter-spacing:8px;text-transform:uppercase;font-family:Georgia,serif">Concept Czech</div>' +
-      '<div style="font-size:10px;color:#666;margin-top:8px;letter-spacing:4px;font-family:Arial,sans-serif">S.R.O.</div>' +
-      '<div style="margin-top:24px;height:1px;background:linear-gradient(90deg,transparent,#c9a84c,transparent)"></div>' +
+      '<table width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.08)">' +
+      // Accent top bar (yellow)
+      '<tr><td style="background:#fbbf24;height:4px;font-size:0;line-height:0">&nbsp;</td></tr>' +
+      // Header (deep blue)
+      '<tr><td style="background:#1e3a8a;padding:28px 32px">' +
+      '<div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;text-transform:uppercase">Concept Czech</div>' +
+      '<div style="color:#93c5fd;font-size:12px;letter-spacing:1px;margin-top:4px">Velkoobchod pro kadeřníky</div>' +
       '</td></tr>' +
-
-      // Icon
-      '<tr><td style="background:#111111;padding:20px 40px 32px;text-align:center">' +
-      '<div style="font-size:56px;line-height:1">' + icon + '</div>' +
-      '</td></tr>' +
-
       // White body
-      '<tr><td class="body-cell" style="padding:48px 48px 32px;text-align:center;background:#ffffff">' +
-      '<div style="height:1px;background:linear-gradient(90deg,transparent,#d4af5a,transparent);margin-bottom:36px"></div>' +
-      '<h1 style="font-size:22px;color:#1a1a1a;margin:0 0 24px 0;font-weight:400;text-align:center;letter-spacing:3px;text-transform:uppercase;font-family:Georgia,serif">' + esc(subject) + '</h1>' +
-      '<div style="font-size:15px;line-height:2;color:#444;margin-bottom:32px;text-align:center;font-family:Arial,sans-serif">' + bodyHtml + '</div>' +
+      '<tr><td class="body-cell" style="padding:36px 40px 28px;background:#ffffff">' +
+      labelHtml +
+      '<h1 style="font-size:22px;color:#0f172a;margin:0 0 20px 0;font-weight:700;letter-spacing:0.3px">' + esc(subject) + '</h1>' +
+      '<div style="font-size:15px;line-height:1.8;color:#334155;margin-bottom:24px">' + bodyHtml + '</div>' +
       discountHtml +
-      '</td></tr>' +
-
-      // CTA
-      '<tr><td class="cta-cell" style="padding:8px 48px 40px;text-align:center;background:#ffffff">' +
-      '<a href="https://www.conceptczech.cz" style="display:inline-block;background:#111111;color:#e8c96a;text-decoration:none;font-size:12px;font-weight:400;padding:16px 40px;letter-spacing:4px;text-transform:uppercase;font-family:Arial,sans-serif">Navštívit náš web</a>' +
-      '</td></tr>' +
-
-      // Bottom gold line
-      '<tr><td style="background:linear-gradient(90deg,#b8912a,#e8c96a,#c9a84c,#f0d060,#b8912a);height:4px;padding:0"></td></tr>' +
-
-      // Footer
-      '<tr><td class="footer" style="background:#111111;padding:28px 40px;text-align:center">' +
-      '<div style="font-size:11px;color:#c9a84c;margin-bottom:8px;font-weight:400;letter-spacing:4px;text-transform:uppercase;font-family:Arial,sans-serif">Concept Czech s.r.o.</div>' +
-      '<div style="font-size:11px;color:#555;line-height:2;font-family:Arial,sans-serif">' +
-      'podpora@conceptczech.cz<br>' +
-      '<a href="https://www.conceptczech.cz" style="color:#9a8060;text-decoration:none;letter-spacing:2px">www.conceptczech.cz</a>' +
+      '<div style="text-align:center;margin-top:4px">' +
+      '<a href="https://www.conceptczech.cz" style="display:inline-block;background:#1e40af;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 28px;border-radius:6px;letter-spacing:0.5px">Navštívit náš web</a>' +
       '</div>' +
+      '</td></tr>' +
+      // Footer
+      '<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center">' +
+      '<div style="font-size:12px;color:#475569">' +
+      '<a href="mailto:podpora@conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">podpora@conceptczech.cz</a>' +
+      ' &nbsp;·&nbsp; ' +
+      '<a href="https://www.conceptczech.cz" style="color:#1e40af;text-decoration:none;font-weight:600">www.conceptczech.cz</a>' +
+      '</div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-top:8px">Concept Czech s.r.o. · Jesenická 513, 252 44 Psáry - Dolní Jirčany</div>' +
       '</td></tr>' +
 
       '</table>' +

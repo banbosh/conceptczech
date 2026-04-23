@@ -528,10 +528,10 @@ const App = (() => {
         const inp = document.getElementById('login-password');
         if (inp.type === 'password') {
           inp.type = 'text';
-          togglePwd.textContent = '🙈';
+          togglePwd.textContent = 'skrýt';
         } else {
           inp.type = 'password';
-          togglePwd.textContent = '👁';
+          togglePwd.textContent = 'zobrazit';
         }
       });
     }
