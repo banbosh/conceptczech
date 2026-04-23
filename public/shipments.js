@@ -34,6 +34,7 @@ const Shipments = (() => {
       <div id="shipment-rows"></div>
       <div class="flex gap-8 mt-12" style="flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" id="btn-fetch-ppl">Načíst dnešní z PPL</button>
+        <button class="btn btn-primary btn-sm" id="btn-paste-ppl">Vložit text z PPL</button>
         <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát PPL CSV</button>
         <button class="btn btn-accent btn-sm" id="btn-test-label">Vygenerovat testovací etiketu</button>
         <button class="btn btn-outline btn-sm" id="btn-test-ppl">Test PPL přihlášení</button>
@@ -252,6 +253,152 @@ const Shipments = (() => {
     container.querySelector('#btn-fetch-ppl').addEventListener('click', () => fetchFromPPL(container));
     container.querySelector('#btn-test-ppl').addEventListener('click', () => testPPLLogin(container));
     container.querySelector('#btn-test-label').addEventListener('click', () => createTestLabel(container));
+    container.querySelector('#btn-paste-ppl').addEventListener('click', () => openPastePPLModal(container));
+  }
+
+  /* ============================================================
+     Ruční vložení textu z PPL portálu
+     (uživatel zkopíruje obsah stránky "Tisk - Seznam balíků"
+     a vloží do textarea; vytáhneme tracking číslo + jméno + var. symbol)
+     ============================================================ */
+  function openPastePPLModal(container) {
+    const html = `
+      <div class="modal-header">
+        <h3 class="modal-title">Vložit text z PPL</h3>
+        <button class="modal-close" id="paste-close">&times;</button>
+      </div>
+      <div style="font-size:0.88rem;color:var(--gray-600);margin-bottom:12px;line-height:1.6">
+        1. Na portálu <strong>klient.ppl.cz</strong> otevři <em>Tisk — Seznam balíků</em>.<br>
+        2. Vyber zásilky, stiskni <strong>Ctrl + A</strong> → <strong>Ctrl + C</strong> (nebo jen to, co potřebuješ).<br>
+        3. Vlož níže a klikni <em>Analyzovat</em>.
+      </div>
+      <textarea id="paste-ppl-text" class="form-textarea" style="min-height:220px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.82rem" placeholder="Vlož sem text z PPL..."></textarea>
+      <div class="flex gap-8 mt-12">
+        <button class="btn btn-primary" id="paste-parse">Analyzovat a naplnit tabulku</button>
+        <button class="btn btn-outline" id="paste-cancel">Zrušit</button>
+      </div>
+    `;
+    App.openModal(html);
+    document.getElementById('paste-close').addEventListener('click', App.closeModal);
+    document.getElementById('paste-cancel').addEventListener('click', App.closeModal);
+    document.getElementById('paste-parse').addEventListener('click', () => {
+      const text = document.getElementById('paste-ppl-text').value || '';
+      const parsed = parsePPLText(text);
+      if (parsed.length === 0) {
+        App.toast('V textu jsem nenašel žádná tracking čísla.', 'error');
+        return;
+      }
+
+      // Pokus o spárování jména s klientem v databázi (pro auto-email)
+      const paired = parsed.map(p => {
+        const match = matchClientByName(p.name);
+        return {
+          ...p,
+          clientId: match ? match.id : '',
+          email: match ? (match.email || '') : '',
+          oz: match ? (match.oz || '') : '',
+        };
+      });
+
+      const fresh = paired.map(p => {
+        const r = emptyRow();
+        r.trackingNum = p.trackingNum;
+        r.name = p.name;
+        r.email = p.email;
+        r.orderNum = p.orderNum || '';
+        r.clientId = p.clientId || '';
+        r.oz = p.oz || '';
+        return r;
+      });
+
+      const allEmpty = rows.every(r => !r.trackingNum && !r.email && !r.orderNum);
+      rows = allEmpty ? fresh : rows.concat(fresh);
+      renderRows(container);
+
+      const matchedCount = paired.filter(p => p.email).length;
+      const unmatched = paired.length - matchedCount;
+      const statusEl = container.querySelector('#import-status');
+      statusEl.innerHTML = `<span style="color:var(--success)">Naimportováno ${paired.length} zásilek.</span>` +
+        ` <span style="color:var(--gray-700)">Z toho ${matchedCount} automaticky dohledáno v databázi klientů</span>` +
+        (unmatched > 0 ? `, <span style="color:var(--warning)">${unmatched} bez emailu — doplň ručně</span>.` : '.');
+
+      App.closeModal();
+    });
+  }
+
+  function parsePPLText(text) {
+    if (!text) return [];
+    const results = [];
+    const seen = new Set();
+
+    // Rozdělíme text na "záznamy" — detekujeme řádky, které začínají
+    // tracking číslem (8-14 číslic na začátku řádku, po whitespace).
+    const trackingRe = /(?:^|\n)\s*(\d{9,14})\b([^\n]*)/g;
+
+    let match;
+    while ((match = trackingRe.exec(text)) !== null) {
+      const trackingNum = match[1];
+      if (seen.has(trackingNum)) continue;
+      seen.add(trackingNum);
+
+      // Za tracking číslem bývá na stejném řádku (nebo dalších) adresa a var. symbol
+      const tail = match[2] || '';
+
+      // Var. symbol: 6-10ciferné číslo oddělené whitespace, typicky 26xxxxxxx
+      const vs = tail.match(/\b(2[56]\d{7,8})\b/);
+      const orderNum = vs ? vs[1] : '';
+
+      // Jméno/firma: text mezi PSČ a "/" oddělovačem
+      // PPL print format: "PSČ Firma / Ulice / Město ..."
+      let name = '';
+      const psclabel = tail.match(/\b(\d{5})\s+([^/\n]+?)(?:\s*\/|,|$)/);
+      if (psclabel) name = psclabel[2].trim();
+
+      // Pokud na tom řádku jméno nenajdeme, zkus další řádek
+      if (!name) {
+        const afterIdx = match.index + match[0].length;
+        const next = text.substring(afterIdx, afterIdx + 200);
+        const nxt = next.match(/\b(\d{5})\s+([^/\n]+?)(?:\s*\/|,|$)/);
+        if (nxt) name = nxt[2].trim();
+      }
+
+      results.push({
+        trackingNum,
+        name: (name || '').replace(/\s+/g, ' ').trim(),
+        orderNum,
+      });
+    }
+
+    return results;
+  }
+
+  function matchClientByName(nameRaw) {
+    if (!nameRaw || clientsCache.length === 0) return null;
+    const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const needle = norm(nameRaw);
+    if (!needle) return null;
+
+    // 1) Přesná shoda normalizovaných názvů (name nebo contactPerson)
+    let best = null, bestScore = 0;
+    for (const c of clientsCache) {
+      const hay1 = norm(c.name);
+      const hay2 = norm(c.contactPerson);
+      let score = 0;
+      if (hay1 && (hay1 === needle || hay1.includes(needle) || needle.includes(hay1))) score = Math.max(score, 2);
+      if (hay2 && (hay2 === needle || hay2.includes(needle) || needle.includes(hay2))) score = Math.max(score, 2);
+
+      // 2) Shoda některého slova (např. příjmení)
+      if (score < 2) {
+        const needleWords = needle.split(' ').filter(w => w.length >= 3);
+        const hayAll = (hay1 + ' ' + hay2).trim();
+        const overlap = needleWords.filter(w => hayAll.includes(w)).length;
+        if (overlap >= 2) score = Math.max(score, 1.5);
+        else if (overlap === 1 && needleWords.length === 1) score = Math.max(score, 1);
+      }
+
+      if (score > bestScore) { bestScore = score; best = c; }
+    }
+    return bestScore >= 1 ? best : null;
   }
 
   async function createTestLabel(container) {
