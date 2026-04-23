@@ -29,13 +29,16 @@ const Shipments = (() => {
 
     html += `<div class="card mb-16">
       <div style="font-size:0.9rem;color:var(--gray-600);margin-bottom:12px">
-        Zadejte zásilky z dnešního PPL výdeji. Každý řádek = jedna zásilka. Po vyplnění emailů odešlete notifikace zákazníkům.
+        Zadejte zásilky z dnešního PPL výdeji. Každý řádek = jedna zásilka. Po vyplnění emailů odešlete notifikace zákazníkům. Nebo nahrajte CSV export z PPL portálu — tabulka se vyplní automaticky.
       </div>
       <div id="shipment-rows"></div>
-      <div class="flex gap-8 mt-12">
+      <div class="flex gap-8 mt-12" style="flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="btn-import-csv">Nahrát PPL CSV</button>
         <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku</button>
         <button class="btn btn-outline btn-sm" id="btn-clear-rows">Vymazat vše</button>
+        <input type="file" id="csv-file-input" accept=".csv,text/csv,.txt,.tsv" style="display:none">
       </div>
+      <div id="import-status" style="margin-top:12px;font-size:0.85rem"></div>
     </div>`;
 
     html += `<div class="card mb-16" id="email-preview-section" style="display:none">
@@ -232,6 +235,168 @@ const Shipments = (() => {
     });
 
     container.querySelector('#btn-send-all').addEventListener('click', () => sendAll(container));
+
+    // CSV import
+    const fileInp = container.querySelector('#csv-file-input');
+    container.querySelector('#btn-import-csv').addEventListener('click', () => fileInp.click());
+    fileInp.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) handleCsvFile(f, container);
+      fileInp.value = '';
+    });
+  }
+
+  /* ============================================================
+     CSV IMPORT — PPL export z portálu myppl.cz
+     Rozpoznává české i anglické názvy sloupců, oddělovače ,;\t
+     ============================================================ */
+
+  function handleCsvFile(file, container) {
+    const statusEl = container.querySelector('#import-status');
+    statusEl.innerHTML = '<span style="color:var(--gray-600)">Načítám soubor…</span>';
+
+    const reader = new FileReader();
+    reader.onerror = () => {
+      statusEl.innerHTML = '<span style="color:var(--danger)">Chyba při čtení souboru.</span>';
+    };
+    reader.onload = (e) => {
+      const buf = new Uint8Array(e.target.result);
+      // Nejdřív UTF-8; pokud se objeví replacement znak, přepneme na Windows-1250
+      let text = '';
+      try { text = new TextDecoder('utf-8', { fatal: false }).decode(buf); } catch (_) {}
+      if ((text.match(/�/g) || []).length > 2) {
+        try { text = new TextDecoder('windows-1250').decode(buf); } catch (_) {}
+      }
+      try {
+        const parsed = parseCsv(text);
+        const mapped = mapCsvRows(parsed.rows, parsed.header);
+        if (mapped.imported.length === 0) {
+          statusEl.innerHTML = `<span style="color:var(--danger)">Nepodařilo se najít v CSV tracking číslo.</span>
+            <div style="color:var(--gray-600);margin-top:6px">Rozpoznané sloupce: ${parsed.header.map(h => `<code style="background:var(--gray-100);padding:2px 6px;border-radius:4px">${escapeHtml(h)}</code>`).join(' ')}</div>
+            <div style="color:var(--gray-600);margin-top:6px">Hledám sloupec s názvem obsahujícím "zásilk", "tracking", "parcel" nebo "AWB".</div>`;
+          return;
+        }
+
+        // Doplň nové řádky: prázdné přepíšeme, pak přidáme
+        const freshRows = mapped.imported.map(m => {
+          const r = emptyRow();
+          r.trackingNum = m.trackingNum || '';
+          r.name = m.name || '';
+          r.email = m.email || '';
+          r.orderNum = m.orderNum || '';
+          return r;
+        });
+
+        // Pokud má uživatel jen prázdné řádky, nahradíme je
+        const allEmpty = rows.every(r => !r.trackingNum && !r.email && !r.orderNum);
+        rows = allEmpty ? freshRows : rows.concat(freshRows);
+        renderRows(container);
+
+        const warn = mapped.imported.filter(m => !m.email).length;
+        statusEl.innerHTML = `<span style="color:var(--success)">Importováno ${mapped.imported.length} zásilek.</span>` +
+          (warn > 0 ? ` <span style="color:var(--warning)">${warn} zásilek bez emailu — doplň ručně, jinak se neodešlou.</span>` : '');
+      } catch (err) {
+        console.error('CSV parse error:', err);
+        statusEl.innerHTML = `<span style="color:var(--danger)">Chyba při zpracování CSV: ${escapeHtml(err.message || String(err))}</span>`;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function parseCsv(text) {
+    // Odstraň BOM
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+    // Najdi oddělovač: ; (český CSV), , (anglický), \t (tab)
+    const firstLine = text.split(/\r?\n/)[0] || '';
+    const counts = { ';': (firstLine.match(/;/g) || []).length,
+                     ',': (firstLine.match(/,/g) || []).length,
+                     '\t': (firstLine.match(/\t/g) || []).length };
+    const delim = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || ',';
+
+    const lines = splitCsvLines(text);
+    if (lines.length < 2) throw new Error('Soubor neobsahuje žádná data.');
+
+    const parsedLines = lines.map(l => parseCsvLine(l, delim));
+    const header = parsedLines[0].map(h => (h || '').trim());
+    const rows = parsedLines.slice(1).filter(r => r.some(v => (v || '').trim() !== ''));
+    return { header, rows };
+  }
+
+  function splitCsvLines(text) {
+    // Rozdělí na řádky, respektuje uvozovky (aby ';' uvnitř "..." nelomilo řádek)
+    const out = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"') { inQ = !inQ; cur += ch; continue; }
+      if ((ch === '\n' || ch === '\r') && !inQ) {
+        if (cur.length) { out.push(cur); cur = ''; }
+        // Přeskoč druhý znak \r\n
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.length) out.push(cur);
+    return out;
+  }
+
+  function parseCsvLine(line, delim) {
+    const out = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; continue; }
+        inQ = !inQ;
+        continue;
+      }
+      if (ch === delim && !inQ) { out.push(cur); cur = ''; continue; }
+      cur += ch;
+    }
+    out.push(cur);
+    return out.map(v => v.trim());
+  }
+
+  function mapCsvRows(rows, header) {
+    const norm = (s) => String(s || '').toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '') // odstraň diakritiku
+      .replace(/[^a-z0-9]/g, '');
+
+    const idxOf = (needles) => {
+      const normHeader = header.map(norm);
+      for (const n of needles) {
+        const nn = norm(n);
+        const i = normHeader.findIndex(h => h.includes(nn));
+        if (i >= 0) return i;
+      }
+      return -1;
+    };
+
+    const iTracking = idxOf(['cislozasilky', 'cislozasi', 'tracking', 'parcel', 'awb', 'shipment', 'cpl']);
+    const iName     = idxOf(['prijemce', 'jmeno', 'name', 'kontaktniosoba', 'contact', 'firma', 'company']);
+    const iEmail    = idxOf(['email', 'mail', 'eshopmail']);
+    const iOrder    = idxOf(['cisloobj', 'objednavk', 'order', 'variabilni', 'reference']);
+
+    if (iTracking < 0) return { imported: [] };
+
+    const imported = [];
+    for (const r of rows) {
+      const trackingNum = (r[iTracking] || '').trim();
+      if (!trackingNum) continue;
+      imported.push({
+        trackingNum,
+        name:  iName  >= 0 ? (r[iName]  || '').trim() : '',
+        email: iEmail >= 0 ? (r[iEmail] || '').trim() : '',
+        orderNum: iOrder >= 0 ? (r[iOrder] || '').trim() : '',
+      });
+    }
+    return { imported };
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   async function sendAll(container) {
