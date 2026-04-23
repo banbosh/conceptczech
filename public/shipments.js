@@ -35,6 +35,7 @@ const Shipments = (() => {
       <div class="flex gap-8 mt-12" style="flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" id="btn-fetch-ppl">Načíst dnešní z PPL</button>
         <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát PPL CSV</button>
+        <button class="btn btn-accent btn-sm" id="btn-test-label">Vygenerovat testovací etiketu</button>
         <button class="btn btn-outline btn-sm" id="btn-test-ppl">Test PPL přihlášení</button>
         <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku</button>
         <button class="btn btn-outline btn-sm" id="btn-clear-rows">Vymazat vše</button>
@@ -250,6 +251,98 @@ const Shipments = (() => {
     // Načíst zásilky z PPL API
     container.querySelector('#btn-fetch-ppl').addEventListener('click', () => fetchFromPPL(container));
     container.querySelector('#btn-test-ppl').addEventListener('click', () => testPPLLogin(container));
+    container.querySelector('#btn-test-label').addEventListener('click', () => createTestLabel(container));
+  }
+
+  async function createTestLabel(container) {
+    const statusEl = container.querySelector('#import-status');
+    const btn = container.querySelector('#btn-test-label');
+    btn.disabled = true;
+    btn.textContent = 'Generuji…';
+    statusEl.innerHTML = '<span style="color:var(--gray-600)">Vytvářím testovací zásilku v PPL…</span>';
+
+    try {
+      const createFn = firebase.app().functions('europe-west1').httpsCallable('pplCreateTestShipment');
+      const createRes = await createFn({});
+      const c = createRes.data || {};
+
+      if (!c.ok) {
+        const attempts = (c.attempts || []).map(a =>
+          `<div><code>${escapeHtml(a.path || '')}</code> (${(a.bodyKeys || []).join(', ')}) → HTTP ${a.status || '?'}</div>
+           <div style="color:var(--gray-600);margin-left:12px;font-size:0.8rem;word-break:break-all">${escapeHtml((a.response || '').slice(0, 500))}</div>`
+        ).join('');
+        statusEl.innerHTML = `<span style="color:var(--danger)">Vytvoření testovací zásilky selhalo.</span>
+          ${c.error ? `<div style="color:var(--gray-700);margin-top:6px"><strong>${escapeHtml(c.error)}</strong></div>` : ''}
+          ${attempts ? `<div style="margin-top:8px">${attempts}</div>` : ''}`;
+        return;
+      }
+
+      // Pokusíme se najít ID/tracking z odpovědi
+      const shipmentData = c.shipment || {};
+      const trackingNum =
+        findFirst(shipmentData, ['shipmentNumber', 'ShipmentNumber', 'trackingNumber', 'TrackingNumber', 'number', 'id', 'Id']) ||
+        (Array.isArray(shipmentData.shipments) && shipmentData.shipments[0] && (shipmentData.shipments[0].shipmentNumber || shipmentData.shipments[0].trackingNumber)) ||
+        c.referenceId;
+
+      statusEl.innerHTML = `<span style="color:var(--success)">Zásilka vytvořena! (${escapeHtml(c.path || '')}, HTTP ${c.status})</span>
+        <div style="color:var(--gray-700);margin-top:6px">Tracking / ID: <code>${escapeHtml(trackingNum || '(nenalezeno v odpovědi)')}</code></div>
+        <div style="color:var(--gray-600);margin-top:4px">Reference: <code>${escapeHtml(c.referenceId || '')}</code></div>
+        <div style="color:var(--gray-600);margin-top:4px">Stahuji PDF etiketu…</div>`;
+
+      // Teď stáhneme PDF etiketu
+      if (!trackingNum) {
+        statusEl.innerHTML += `<div style="color:var(--warning);margin-top:6px">Nemůžu stáhnout etiketu — nenašel jsem ID v odpovědi. Pošli mi prosím screenshot a doladíme.</div>
+          <details style="margin-top:6px"><summary style="cursor:pointer;color:var(--gray-600)">Ukázat celou odpověď</summary>
+          <pre style="background:var(--gray-100);padding:8px;border-radius:4px;overflow:auto;max-height:300px;font-size:0.75rem">${escapeHtml(JSON.stringify(shipmentData, null, 2))}</pre></details>`;
+        return;
+      }
+
+      const labelFn = firebase.app().functions('europe-west1').httpsCallable('pplGetLabel');
+      const labelRes = await labelFn({ shipmentId: trackingNum });
+      const l = labelRes.data || {};
+
+      if (l.ok && l.pdfBase64) {
+        // Stáhnout jako soubor
+        const byteChars = atob(l.pdfBase64);
+        const bytes = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        const filename = `PPL-test-etiketa-${trackingNum}.pdf`;
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+        statusEl.innerHTML += `<div style="color:var(--success);margin-top:8px"><strong>PDF etiketa stažena: ${escapeHtml(filename)}</strong></div>
+          <div style="color:var(--gray-600);margin-top:4px">Pošli ji emailem na PPL pro odemčení produkce.</div>
+          <div style="margin-top:6px"><a href="${blobUrl}" target="_blank" class="btn btn-outline btn-sm">Otevřít PDF</a></div>`;
+      } else {
+        const attempts = (l.attempts || []).map(a =>
+          `<div><code>${escapeHtml(a.path || '')}</code> (${a.method || ''}) → HTTP ${a.status || '?'} ${a.contentType ? '(' + a.contentType + ')' : ''} ${a.error ? '— ' + escapeHtml(a.error) : ''}</div>`
+        ).join('');
+        statusEl.innerHTML += `<div style="color:var(--danger);margin-top:8px">Nepodařilo se stáhnout PDF etiketu.</div>
+          ${l.error ? `<div style="margin-top:4px;color:var(--gray-700)"><strong>${escapeHtml(l.error)}</strong></div>` : ''}
+          ${attempts ? `<div style="margin-top:6px;color:var(--gray-600);font-size:0.85rem">${attempts}</div>` : ''}`;
+      }
+    } catch (err) {
+      console.error(err);
+      statusEl.innerHTML = `<span style="color:var(--danger)">Chyba: ${escapeHtml(err.message || err.code || String(err))}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Vygenerovat testovací etiketu';
+    }
+  }
+
+  function findFirst(obj, keys) {
+    if (!obj || typeof obj !== 'object') return '';
+    for (const k of keys) {
+      if (obj[k] != null && String(obj[k]).trim() !== '') return String(obj[k]).trim();
+    }
+    return '';
   }
 
   async function testPPLLogin(container) {

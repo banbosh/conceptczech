@@ -821,6 +821,210 @@ exports.pplTestLogin = onCall({
   }
 });
 
+// Callable: vytvoří testovací zásilku v PPL CPL API.
+// Účel: získat PDF etiketu, kterou pošleme PPL pro odemčení produkce.
+exports.pplCreateTestShipment = onCall({
+  region: 'europe-west1',
+  secrets: [PPL_CLIENT_ID, PPL_CLIENT_SECRET, PPL_BASE_URL],
+  timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Musíte být přihlášen.');
+  const email = (request.auth.token.email || '').toLowerCase();
+  const isAdm = /.+@conceptczech\.cz$/i.test(email) || ['knobloch.petr@gmail.com', 'info@banbosh.cz'].includes(email);
+  if (!isAdm) {
+    const userSnap = await db.collection('users').doc(request.auth.uid).get();
+    const role = userSnap.exists ? (userSnap.data().role || '') : '';
+    if (!['admin', 'office', 'warehouse'].includes(role)) {
+      throw new HttpsError('permission-denied', 'Jen admin, office, warehouse.');
+    }
+  }
+
+  try {
+    const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
+    const token = await pplGetAccessToken();
+
+    // Unikátní externí reference ať neovlivňuje další test
+    const ref = `TEST-${Date.now()}`;
+
+    // Základní data — sender = Concept Czech, recipient = test
+    const shipment = {
+      referenceId: ref,
+      productType: 'BUSINESSPARCEL',
+      note: 'TESTOVACÍ ZÁSILKA — neodesílat',
+      shipmentSet: { numberOfShipments: 1 },
+      sender: {
+        name: 'Concept Czech s.r.o.',
+        street: 'Jesenická 513',
+        city: 'Psáry - Dolní Jirčany',
+        zipCode: '25244',
+        country: 'CZ',
+        contact: 'Petr Knobloch',
+        email: 'podpora@conceptczech.cz',
+        phone: '+420602554787',
+      },
+      recipient: {
+        name: 'Testovací příjemce',
+        street: 'Testovací 1',
+        city: 'Praha',
+        zipCode: '11000',
+        country: 'CZ',
+        email: 'test@conceptczech.cz',
+        phone: '+420602554788',
+      },
+      packages: [
+        { weight: 1.5, width: 20, length: 30, height: 15 },
+      ],
+    };
+
+    // PPL CPL API: POST /shipment/batch (preferovaná) nebo POST /shipment
+    const bodies = [
+      { path: '/shipment/batch', body: { shipments: [shipment] } },
+      { path: '/shipment', body: shipment },
+      { path: '/shipment', body: { shipments: [shipment] } },
+    ];
+
+    const attempts = [];
+    for (const attempt of bodies) {
+      const bodyStr = JSON.stringify(attempt.body);
+      const url = new URL(baseUrl + attempt.path);
+      const res = await httpRequest({
+        hostname: url.hostname,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(bodyStr),
+          'Accept': 'application/json',
+        },
+      }, bodyStr);
+      attempts.push({
+        path: attempt.path,
+        bodyKeys: Object.keys(attempt.body),
+        status: res.status,
+        response: String(res.body || '').slice(0, 2000),
+      });
+      if (res.status >= 200 && res.status < 300) {
+        let parsed = null;
+        try { parsed = JSON.parse(res.body); } catch (_) {}
+        return {
+          ok: true,
+          status: res.status,
+          path: attempt.path,
+          shipment: parsed,
+          raw: res.body,
+          locationHeader: res.headers && (res.headers.location || res.headers.Location) || null,
+          referenceId: ref,
+          attempts,
+        };
+      }
+    }
+
+    return { ok: false, error: 'Žádná varianta POST /shipment nebyla přijata.', attempts };
+  } catch (e) {
+    logger.error('pplCreateTestShipment', e);
+    return { ok: false, error: String(e.message || e), stack: String(e.stack || '').slice(0, 500) };
+  }
+});
+
+// Callable: pokusí se získat PDF etiketu pro daný shipmentId / tracking.
+exports.pplGetLabel = onCall({
+  region: 'europe-west1',
+  secrets: [PPL_CLIENT_ID, PPL_CLIENT_SECRET, PPL_BASE_URL],
+  timeoutSeconds: 120,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Musíte být přihlášen.');
+
+  try {
+    const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
+    const token = await pplGetAccessToken();
+    const id = String((request.data && (request.data.shipmentId || request.data.trackingNumber)) || '').trim();
+    if (!id) return { ok: false, error: 'Chybí shipmentId nebo trackingNumber.' };
+
+    // Různé typické PPL CPL label endpointy
+    const candidates = [
+      { path: `/shipment/${encodeURIComponent(id)}/label`, method: 'GET' },
+      { path: `/shipment/${encodeURIComponent(id)}/label?format=Pdf`, method: 'GET' },
+      { path: `/shipment/label`, method: 'POST', body: { shipmentNumbers: [id], format: 'Pdf' } },
+      { path: `/shipment/${encodeURIComponent(id)}/print`, method: 'GET' },
+      { path: `/label/${encodeURIComponent(id)}`, method: 'GET' },
+    ];
+
+    const attempts = [];
+    for (const cand of candidates) {
+      try {
+        const url = new URL(baseUrl + cand.path);
+        const opts = {
+          hostname: url.hostname,
+          path: url.pathname + (url.search || ''),
+          method: cand.method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/pdf, application/json, */*',
+          },
+        };
+        let bodyStr = null;
+        if (cand.body) {
+          bodyStr = JSON.stringify(cand.body);
+          opts.headers['Content-Type'] = 'application/json';
+          opts.headers['Content-Length'] = Buffer.byteLength(bodyStr);
+        }
+
+        // Musíme dostat binární data — použijeme variantu bez toString
+        const resBinary = await httpRequestBinary(opts, bodyStr);
+        const contentType = (resBinary.headers['content-type'] || '').toLowerCase();
+        attempts.push({ path: cand.path, method: cand.method, status: resBinary.status, contentType });
+
+        if (resBinary.status >= 200 && resBinary.status < 300) {
+          if (contentType.includes('pdf')) {
+            return {
+              ok: true,
+              path: cand.path,
+              contentType,
+              pdfBase64: resBinary.buffer.toString('base64'),
+              attempts,
+            };
+          }
+          // Pokud JSON obsahuje odkaz na PDF, zkusíme vrátit aspoň JSON
+          try {
+            const parsed = JSON.parse(resBinary.buffer.toString('utf-8'));
+            return { ok: true, path: cand.path, contentType, json: parsed, attempts };
+          } catch (_) {
+            return {
+              ok: true,
+              path: cand.path,
+              contentType,
+              dataBase64: resBinary.buffer.toString('base64'),
+              attempts,
+            };
+          }
+        }
+      } catch (e) {
+        attempts.push({ path: cand.path, error: String(e.message || e) });
+      }
+    }
+
+    return { ok: false, error: 'Žádný label endpoint neodpověděl 2xx.', attempts };
+  } catch (e) {
+    logger.error('pplGetLabel', e);
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
+// Pomocná — jako httpRequest, ale vrací buffer (pro PDF apod.)
+function httpRequestBinary(options, body) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, buffer: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
 // Z různých tvarů odpovědi se pokouší vytáhnout pole zásilek
 // a zmapovat je na { trackingNum, name, email, orderNum }.
 function extractShipmentsFromResponse(data) {
