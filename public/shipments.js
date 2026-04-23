@@ -35,12 +35,12 @@ const Shipments = (() => {
       <div class="flex gap-8 mt-12" style="flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" id="btn-fetch-ppl">Načíst dnešní z PPL</button>
         <button class="btn btn-primary btn-sm" id="btn-paste-ppl">Vložit text z PPL</button>
-        <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát PPL CSV</button>
+        <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát soubor z PPL (PDF / CSV)</button>
         <button class="btn btn-accent btn-sm" id="btn-test-label">Vygenerovat testovací etiketu</button>
         <button class="btn btn-outline btn-sm" id="btn-test-ppl">Test PPL přihlášení</button>
         <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku</button>
         <button class="btn btn-outline btn-sm" id="btn-clear-rows">Vymazat vše</button>
-        <input type="file" id="csv-file-input" accept=".csv,text/csv,.txt,.tsv" style="display:none">
+        <input type="file" id="csv-file-input" accept=".csv,.pdf,.txt,.tsv,text/csv,application/pdf" style="display:none">
       </div>
       <div id="import-status" style="margin-top:12px;font-size:0.85rem"></div>
     </div>`;
@@ -240,12 +240,15 @@ const Shipments = (() => {
 
     container.querySelector('#btn-send-all').addEventListener('click', () => sendAll(container));
 
-    // CSV import
+    // Import souboru — CSV nebo PDF
     const fileInp = container.querySelector('#csv-file-input');
     container.querySelector('#btn-import-csv').addEventListener('click', () => fileInp.click());
     fileInp.addEventListener('change', (e) => {
       const f = e.target.files && e.target.files[0];
-      if (f) handleCsvFile(f, container);
+      if (!f) return;
+      const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+      if (isPdf) handlePdfFile(f, container);
+      else handleCsvFile(f, container);
       fileInp.value = '';
     });
 
@@ -580,6 +583,90 @@ const Shipments = (() => {
     } finally {
       btn.disabled = false;
       btn.textContent = 'Načíst dnešní z PPL';
+    }
+  }
+
+  /* ============================================================
+     PDF IMPORT — výpis z PPL portálu (Tisk - Seznam balíků)
+     ============================================================ */
+  async function handlePdfFile(file, container) {
+    const statusEl = container.querySelector('#import-status');
+    if (!window.pdfjsLib) {
+      statusEl.innerHTML = '<span style="color:var(--danger)">PDF knihovna se nenačetla. Refreshni stránku (Ctrl+Shift+R) a zkus znovu.</span>';
+      return;
+    }
+    statusEl.innerHTML = '<span style="color:var(--gray-600)">Čtu PDF…</span>';
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        // Sebereme text, zachováme pozici (x,y), pak složíme do řádků
+        const items = content.items.map(it => ({
+          str: it.str,
+          x: it.transform ? it.transform[4] : 0,
+          y: it.transform ? it.transform[5] : 0,
+        }));
+        // Seskup podle Y (řádky), uvnitř seřaď podle X
+        const byY = new Map();
+        items.forEach(it => {
+          const y = Math.round(it.y);
+          if (!byY.has(y)) byY.set(y, []);
+          byY.get(y).push(it);
+        });
+        const sortedYs = [...byY.keys()].sort((a, b) => b - a); // shora dolů
+        for (const y of sortedYs) {
+          const line = byY.get(y).sort((a, b) => a.x - b.x).map(it => it.str).join(' ').replace(/\s+/g, ' ').trim();
+          if (line) fullText += line + '\n';
+        }
+        fullText += '\n';
+      }
+
+      const parsed = parsePPLText(fullText);
+      if (parsed.length === 0) {
+        statusEl.innerHTML = `<span style="color:var(--danger)">V PDF jsem nenašel žádná tracking čísla.</span>
+          <details style="margin-top:6px"><summary style="cursor:pointer;color:var(--gray-600)">Ukázat extrahovaný text</summary>
+          <pre style="background:var(--gray-100);padding:8px;border-radius:4px;overflow:auto;max-height:300px;font-size:0.75rem">${escapeHtml(fullText.slice(0, 3000))}</pre></details>`;
+        return;
+      }
+
+      // Spárujeme s klienty pro email
+      const paired = parsed.map(p => {
+        const match = matchClientByName(p.name);
+        return {
+          ...p,
+          clientId: match ? match.id : '',
+          email: match ? (match.email || '') : '',
+          oz: match ? (match.oz || '') : '',
+        };
+      });
+
+      const fresh = paired.map(p => {
+        const r = emptyRow();
+        r.trackingNum = p.trackingNum;
+        r.name = p.name;
+        r.email = p.email;
+        r.orderNum = p.orderNum || '';
+        r.clientId = p.clientId || '';
+        r.oz = p.oz || '';
+        return r;
+      });
+
+      const allEmpty = rows.every(r => !r.trackingNum && !r.email && !r.orderNum);
+      rows = allEmpty ? fresh : rows.concat(fresh);
+      renderRows(container);
+
+      const matchedCount = paired.filter(p => p.email).length;
+      const unmatched = paired.length - matchedCount;
+      statusEl.innerHTML = `<span style="color:var(--success)">Naimportováno z PDF: ${paired.length} zásilek.</span>` +
+        ` <span style="color:var(--gray-700)">Z toho ${matchedCount} automaticky dohledáno v databázi klientů</span>` +
+        (unmatched > 0 ? `, <span style="color:var(--warning)">${unmatched} bez emailu — doplň ručně</span>.` : '.');
+    } catch (err) {
+      console.error('PDF parse error:', err);
+      statusEl.innerHTML = `<span style="color:var(--danger)">Chyba při čtení PDF: ${escapeHtml(err.message || String(err))}</span>`;
     }
   }
 
