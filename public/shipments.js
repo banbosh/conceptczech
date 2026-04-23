@@ -35,6 +35,7 @@ const Shipments = (() => {
       <div class="flex gap-8 mt-12" style="flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" id="btn-fetch-ppl">Načíst dnešní z PPL</button>
         <button class="btn btn-outline btn-sm" id="btn-import-csv">Nahrát PPL CSV</button>
+        <button class="btn btn-outline btn-sm" id="btn-test-ppl">Test PPL přihlášení</button>
         <button class="btn btn-outline btn-sm" id="btn-add-row">+ Přidat zásilku</button>
         <button class="btn btn-outline btn-sm" id="btn-clear-rows">Vymazat vše</button>
         <input type="file" id="csv-file-input" accept=".csv,text/csv,.txt,.tsv" style="display:none">
@@ -248,6 +249,35 @@ const Shipments = (() => {
 
     // Načíst zásilky z PPL API
     container.querySelector('#btn-fetch-ppl').addEventListener('click', () => fetchFromPPL(container));
+    container.querySelector('#btn-test-ppl').addEventListener('click', () => testPPLLogin(container));
+  }
+
+  async function testPPLLogin(container) {
+    const statusEl = container.querySelector('#import-status');
+    const btn = container.querySelector('#btn-test-ppl');
+    btn.disabled = true;
+    btn.textContent = 'Testuji…';
+    statusEl.innerHTML = '<span style="color:var(--gray-600)">Volám PPL login…</span>';
+
+    try {
+      const fn = firebase.app().functions('europe-west1').httpsCallable('pplTestLogin');
+      const res = await fn({});
+      const d = res.data || {};
+      if (d.ok) {
+        statusEl.innerHTML = `<span style="color:var(--success)">PPL přihlášení funguje!</span>
+          <div style="color:var(--gray-600);margin-top:6px">URL: <code>${escapeHtml(d.url || '')}</code></div>
+          <div style="color:var(--gray-600);margin-top:4px">HTTP ${d.status} — odpověď začíná: <code>${escapeHtml(d.bodyPreview || '')}</code></div>`;
+      } else {
+        statusEl.innerHTML = `<span style="color:var(--danger)">PPL přihlášení selhalo (${escapeHtml(d.stage || '')})</span>
+          <div style="color:var(--gray-700);margin-top:6px">${escapeHtml(d.error || '')}</div>
+          <div style="color:var(--gray-600);margin-top:6px">HTTP ${d.status || '?'} — <code>${escapeHtml(d.bodyPreview || '')}</code></div>`;
+      }
+    } catch (err) {
+      statusEl.innerHTML = `<span style="color:var(--danger)">Chyba volání testu: ${escapeHtml(err.message || err.code || String(err))}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Test PPL přihlášení';
+    }
   }
 
   async function fetchFromPPL(container) {
@@ -279,10 +309,17 @@ const Shipments = (() => {
       } else if (data.ok && data.count === 0) {
         statusEl.innerHTML = `<span style="color:var(--warning)">PPL API odpovědělo na ${data.path}, ale dnes nevrací žádné zásilky. Zkus nahrát CSV export z portálu.</span>`;
       } else {
-        const attempts = (data.attempts || []).map(a => `${a.path} → ${a.status}`).join('<br>');
-        statusEl.innerHTML = `<span style="color:var(--danger)">PPL API nevrátilo seznam zásilek.</span>
-          <div style="color:var(--gray-600);margin-top:6px">Zkoušeno:<br>${attempts || '(nic)'}</div>
-          <div style="color:var(--gray-600);margin-top:6px">Nejspíš sandbox nemá endpoint pro výpis, nebo ho PPL pojmenovalo jinak. Použij prozatím "Nahrát PPL CSV".</div>`;
+        const stage = data.stage ? ` [${data.stage}]` : '';
+        const attempts = (data.attempts || []).map(a => {
+          if (a.error) return `<code>${escapeHtml(a.path)}</code> → chyba: ${escapeHtml(a.error)}`;
+          const preview = a.bodyPreview ? ` — <code style="font-size:0.75rem">${escapeHtml(a.bodyPreview)}</code>` : '';
+          return `<code>${escapeHtml(a.path)}</code> → HTTP ${a.status}${preview}`;
+        }).join('<br>');
+        statusEl.innerHTML = `<span style="color:var(--danger)">PPL nevrátilo seznam zásilek${stage}.</span>
+          <div style="color:var(--gray-700);margin-top:6px"><strong>${escapeHtml(data.error || '')}</strong></div>
+          ${data.hint ? `<div style="color:var(--gray-600);margin-top:4px">${escapeHtml(data.hint)}</div>` : ''}
+          ${attempts ? `<div style="color:var(--gray-600);margin-top:6px;line-height:1.7">${attempts}</div>` : ''}
+          <div style="color:var(--gray-600);margin-top:8px">Zkus "Test PPL přihlášení" pro ověření credentials. Nebo nahraj CSV.</div>`;
       }
     } catch (err) {
       console.error('PPL fetch error:', err);

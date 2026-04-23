@@ -721,55 +721,108 @@ exports.pplListShipments = onCall({
     }
   }
 
-  const days = Math.max(1, Math.min(30, Number((request.data && request.data.days) || 1)));
-  const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
-  if (!baseUrl) throw new HttpsError('failed-precondition', 'PPL_BASE_URL není nastaveno.');
+  try {
+    const days = Math.max(1, Math.min(30, Number((request.data && request.data.days) || 1)));
+    const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
+    if (!baseUrl) return { ok: false, stage: 'config', error: 'PPL_BASE_URL není nastaveno v Secret Manageru.' };
 
-  const token = await pplGetAccessToken();
+    let token;
+    try {
+      token = await pplGetAccessToken();
+    } catch (e) {
+      return { ok: false, stage: 'login', error: String(e.message || e), hint: 'Nepovedlo se získat access token. Zkontroluj PPL_CLIENT_ID, PPL_CLIENT_SECRET a PPL_BASE_URL v Firebase Secret Manageru.' };
+    }
 
-  const now = new Date();
-  const fromDate = new Date(now); fromDate.setDate(now.getDate() - days + 1); fromDate.setHours(0, 0, 0, 0);
-  const fmt = (d) => d.toISOString().slice(0, 10);             // 2026-04-23
-  const fmtCz = (d) => d.toISOString().slice(0, 10).replace(/-/g, '') + 'T000000Z'; // alt
+    const now = new Date();
+    const fromDate = new Date(now); fromDate.setDate(now.getDate() - days + 1); fromDate.setHours(0, 0, 0, 0);
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    const fmtCz = (d) => d.toISOString().slice(0, 10).replace(/-/g, '') + 'T000000Z';
 
-  // PPL CPL API má několik tvarů list endpointu; zkusíme je postupně.
-  const candidates = [
-    `/shipment?DateFrom=${fmt(fromDate)}&DateTo=${fmt(now)}`,
-    `/shipment?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
-    `/shipment?CreatedFrom=${fmt(fromDate)}&CreatedTo=${fmt(now)}`,
-    `/shipment?From=${fmtCz(fromDate)}&To=${fmtCz(now)}`,
-    `/shipment/search?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
-    `/shipment-batch?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
-    `/shipment?limit=200`,
-    `/shipment`,
-  ];
+    const candidates = [
+      `/shipment?DateFrom=${fmt(fromDate)}&DateTo=${fmt(now)}`,
+      `/shipment?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
+      `/shipment?CreatedFrom=${fmt(fromDate)}&CreatedTo=${fmt(now)}`,
+      `/shipment?From=${fmtCz(fromDate)}&To=${fmtCz(now)}`,
+      `/shipment/search?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
+      `/shipment-batch?dateFrom=${fmt(fromDate)}&dateTo=${fmt(now)}`,
+      `/shipment?limit=200`,
+      `/shipment`,
+    ];
 
-  const attempts = [];
-  for (const path of candidates) {
-    const url = new URL(baseUrl + path);
+    const attempts = [];
+    for (const path of candidates) {
+      try {
+        const url = new URL(baseUrl + path);
+        const res = await httpRequest({
+          hostname: url.hostname,
+          path: url.pathname + url.search,
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+        attempts.push({ path, status: res.status, bodyPreview: String(res.body || '').slice(0, 200) });
+        if (res.status < 400 && res.body) {
+          try {
+            const data = JSON.parse(res.body);
+            const shipments = extractShipmentsFromResponse(data);
+            return { ok: true, path, count: shipments.length, shipments, attempts };
+          } catch (e) {
+            attempts[attempts.length - 1].parseError = String(e.message || e);
+            continue;
+          }
+        }
+        if (res.status === 401) break;
+      } catch (e) {
+        attempts.push({ path, error: String(e.message || e) });
+      }
+    }
+
+    return { ok: false, stage: 'list', error: 'Žádný list endpoint neodpověděl 2xx.', attempts };
+  } catch (e) {
+    logger.error('pplListShipments crashed', e);
+    return { ok: false, stage: 'unexpected', error: String(e.message || e), stack: String(e.stack || '').slice(0, 500) };
+  }
+});
+
+// Jednoduchý test PPL loginu — pro debug "Chyba PPL: INTERNAL"
+exports.pplTestLogin = onCall({
+  region: 'europe-west1',
+  secrets: [PPL_CLIENT_ID, PPL_CLIENT_SECRET, PPL_BASE_URL],
+}, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Musíte být přihlášen.');
+  try {
+    const baseUrl = (PPL_BASE_URL.value() || '').replace(/\/+$/, '');
+    if (!baseUrl) return { ok: false, stage: 'config', error: 'PPL_BASE_URL prázdné' };
+    // Pouze kontrola, že token request vůbec projde (bez cache)
+    pplTokenCache = { token: null, expiresAt: 0 };
+    const url = new URL(baseUrl + '/login/getAccessToken');
+    const form = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: PPL_CLIENT_ID.value(),
+      client_secret: PPL_CLIENT_SECRET.value(),
+      scope: 'myapi2',
+    }).toString();
     const res = await httpRequest({
       hostname: url.hostname,
       path: url.pathname + url.search,
-      method: 'GET',
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(form),
         'Accept': 'application/json',
       },
-    });
-    attempts.push({ path, status: res.status, bodyPreview: String(res.body || '').slice(0, 160) });
-    if (res.status < 400 && res.body) {
-      try {
-        const data = JSON.parse(res.body);
-        const shipments = extractShipmentsFromResponse(data);
-        return { ok: true, path, count: shipments.length, shipments, raw: data, attempts };
-      } catch (e) {
-        continue;
-      }
-    }
-    if (res.status === 401) break;
+    }, form);
+    return {
+      ok: res.status < 400,
+      status: res.status,
+      url: baseUrl + '/login/getAccessToken',
+      bodyPreview: String(res.body || '').slice(0, 400),
+    };
+  } catch (e) {
+    return { ok: false, stage: 'exception', error: String(e.message || e), stack: String(e.stack || '').slice(0, 500) };
   }
-
-  return { ok: false, error: 'Žádný list endpoint neodpověděl 2xx.', attempts };
 });
 
 // Z různých tvarů odpovědi se pokouší vytáhnout pole zásilek
