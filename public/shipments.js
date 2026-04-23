@@ -226,7 +226,6 @@ const Shipments = (() => {
 
   function buildEmailHtml(trackingNum, name, orderNum) {
     const trackingUrl = `https://www.ppl.cz/vyhledat-zasilku?parcelNumber=${trackingNum}`;
-    const greeting = name ? `Vážený zákazníku ${name.split(' ')[0]},` : 'Dobrý den,';
 
     return `<!DOCTYPE html>
 <html lang="cs">
@@ -254,7 +253,7 @@ const Shipments = (() => {
       <tr>
         <td style="background:#ffffff;padding:32px">
 
-          <p style="color:#333;font-size:16px;margin:0 0 16px">${greeting}</p>
+          <p style="color:#333;font-size:16px;margin:0 0 16px">Dobrý den,</p>
 
           <p style="color:#333;font-size:15px;line-height:1.7;margin:0 0 20px">
             🚚 Dnes jsme vyexpedovali Vaši objednávku${orderNum ? ` č. <strong>${orderNum}</strong>` : ''}.
@@ -263,6 +262,7 @@ const Shipments = (() => {
           <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 20px">
             Objednávky v rámci České republiky standardně doručujeme <strong>následující pracovní den</strong>.
             Pro Slovensko počítejte prosím s doručením o jeden pracovní den později.
+            Pokud byste si chtěl/a hlídat aktuální stav své objednávky, zasíláme číslo zásilky a odkaz na sledování zásilky:
           </p>
 
           <!-- Tracking box -->
@@ -278,21 +278,8 @@ const Shipments = (() => {
             </tr>
           </table>
 
-          <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 16px">
-            Děkujeme, že jste si vybrali náš obchod! 🛍️❤️ Fakturu společně s malou pozorností 🎁 od nás najdete ve Vašem balíčku.
-          </p>
-
-          <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 16px">
-            Velmi si vážíme toho, že jste nakoupili právě u nás. 🙏 Doufáme, že vše proběhlo v pořádku ✔️ a že nám i nadále zachováte svou přízeň. 🌟
-          </p>
-
-          <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 24px">
-            Pokud byste si našli chvíli na napsání krátké recenze ✍️ na náš obchod, udělalo by nám to obrovskou radost. 😊
-            Vaše zpětná vazba 🗨️ je pro nás nesmírně důležitá a pomáhá nám se neustále zlepšovat. 🚀
-          </p>
-
-          <p style="color:#333;font-size:15px;line-height:1.7;margin:0">
-            🙏 Ještě jednou Vám moc děkujeme za objednávku a přejeme krásný zbytek dne. 🌞
+          <p style="color:#333;font-size:15px;line-height:1.7;margin:24px 0 0">
+            🙏 Moc děkujeme za Vaši objednávku a přejeme krásný den. 🌞
           </p>
 
         </td>
@@ -325,9 +312,10 @@ const Shipments = (() => {
       <div style="padding:16px;background:#fff;font-size:13px;color:#333;line-height:1.7">
         <p><strong>Dobrý den,</strong></p>
         <p>🚚 Dnes jsme vyexpedovali Vaši objednávku č. <strong>${orderNum || '---'}</strong>.</p>
+        <p style="color:#666">Objednávky v rámci ČR doručujeme následující pracovní den, na Slovensko o den později. Zasíláme Vám číslo zásilky a odkaz pro sledování:</p>
         <p>📦 Číslo zásilky: <strong>${trackingNum}</strong></p>
         <p>🔗 <a href="https://www.ppl.cz/vyhledat-zasilku?parcelNumber=${trackingNum}" style="color:#c9a84c">Sledovat zásilku online</a></p>
-        <p style="color:#888;font-size:12px">+ text s poděkováním, pozorností v balíčku a výzvou k recenzi</p>
+        <p>🙏 Moc děkujeme za Vaši objednávku a přejeme krásný den. 🌞</p>
       </div>
       <div style="background:#1a1a1a;padding:8px 16px;text-align:center;color:#888;font-size:11px">podpora@conceptczech.cz · www.conceptczech.cz</div>
     </div>`;
