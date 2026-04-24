@@ -738,17 +738,19 @@ const Clients = (() => {
       headers.forEach(function(h, idx) { obj[h] = vals[idx] || ''; });
 
       rows.push({
-        name: find(['Firma', 'firma', 'Nazev', 'nazev', 'Jmeno', 'Název', 'Jméno'], obj),
-        contactPerson: find(['Kontaktní osoba', 'Kontakt', 'Kontaktni', 'Contact'], obj),
+        name: find(['Firma', 'firma', 'Nazev', 'nazev', 'Jmeno', 'Název', 'Jméno', 'NazevFirmy', 'Nazev firmy', 'Company'], obj),
+        contactPerson: find(['Kontaktní osoba', 'Kontaktni osoba', 'Kontakt', 'Kontaktni', 'Contact', 'Kontaktní jméno', 'Osoba', 'JmenoPrijmeni', 'Jmeno a prijmeni', 'Jméno a příjmení'], obj),
         email: find(['Email', 'email', 'E-mail', 'e-mail', 'Mail'], obj),
         phone: find(['Telefon', 'telefon', 'Tel', 'tel', 'Mobil', 'Phone'], obj),
-        city: find(['Mesto', 'mesto', 'Město', 'City'], obj),
-        address: find(['Ulice', 'ulice', 'Adresa', 'adresa', 'Street'], obj),
-        oz: find(['Obchodní zástupce', 'obchodni zastupce', 'OZ', 'Zastupce', 'Zástupce'], obj),
-        birthday: normalizeDDMM(find(['Narozeniny', 'narozeniny', 'Datum narození', 'Birthday'], obj)),
-        nameday: normalizeDDMM(find(['Svátek', 'svatek', 'Nameday'], obj)),
-        ico: find(['IČO', 'ICO', 'ico'], obj),
-        dic: find(['DIČ', 'DIC', 'dic'], obj)
+        city: find(['Mesto dorucovaci', 'Město doručovací', 'Doručovací město', 'Dorucovaci mesto', 'Mesto', 'mesto', 'Město', 'City'], obj),
+        address: find(['Ulice dorucovaci', 'Ulice doručovací', 'Doručovací ulice', 'Dorucovaci ulice', 'Ulice', 'ulice', 'Adresa', 'adresa', 'Street'], obj),
+        zip: find(['PSČ doručovací', 'PSC dorucovaci', 'Doručovací PSČ', 'PSČ', 'PSC', 'Zip'], obj),
+        region: find(['Kraj', 'kraj', 'Region'], obj),
+        oz: find(['Obchodní zástupce', 'obchodni zastupce', 'OZ', 'Zastupce', 'Zástupce', 'Zastupci', 'ObchodniZastupce', 'Prodejce', 'Sales rep'], obj),
+        birthday: normalizeDDMM(find(['Narozeniny', 'narozeniny', 'Datum narození', 'Datum narozeni', 'Birthday'], obj)),
+        nameday: normalizeDDMM(find(['Svátek', 'Svatek', 'svatek', 'Nameday'], obj)),
+        ico: find(['IČO', 'ICO', 'ico', 'Identifikační číslo'], obj),
+        dic: find(['DIČ', 'DIC', 'dic', 'Daňové identifikační číslo'], obj)
       });
     }
     return rows.filter(function(r) { return r.name; });
