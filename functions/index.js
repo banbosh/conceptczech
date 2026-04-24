@@ -178,9 +178,16 @@ exports.dailyCelebrantsEmail = onSchedule({
   const snap = await db.collection('clients').get();
   const birthday = [], nameday = [];
 
+  // Interní OZ, kterým negratulujeme: CC (Concept Czech vlastní),
+  // E-shop (koncoví zákazníci z Shoptetu). Jen kadeřníci s reálným OZ.
+  const OZ_EXCLUDE = new Set(['cc', 'eshop', 'e-shop', 'e shop', 'concept czech']);
+
   snap.forEach(doc => {
     const c = { id: doc.id, ...doc.data() };
     if (c.active === false || !c.email) return;
+    const oz = String(c.oz || '').trim().toLowerCase();
+    // Pouze klienti s přiřazeným OZ a OZ není interní / eshop
+    if (!oz || OZ_EXCLUDE.has(oz)) return;
     if (c.birthday === today) birthday.push(c);
     if (c.nameday === today) nameday.push(c);
   });

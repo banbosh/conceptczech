@@ -108,8 +108,14 @@ const Home = (() => {
     });
 
     const todayDDMM = String(now.getDate()).padStart(2, '0') + '.' + String(now.getMonth() + 1).padStart(2, '0');
-    const celebTodayBirthday = clientsCache.filter(c => c.active !== false && (c.birthday || '').trim() === todayDDMM);
-    const celebTodayNameday  = clientsCache.filter(c => c.active !== false && (c.nameday  || '').trim() === todayDDMM);
+    // Pouze klienti s přiřazeným OZ (ne CC, ne eshop)
+    const OZ_EXCLUDE = ['cc', 'eshop', 'e-shop', 'e shop', 'concept czech'];
+    const hasValidOZ = (c) => {
+      const oz = String(c.oz || '').trim().toLowerCase();
+      return oz && OZ_EXCLUDE.indexOf(oz) === -1;
+    };
+    const celebTodayBirthday = clientsCache.filter(c => c.active !== false && hasValidOZ(c) && (c.birthday || '').trim() === todayDDMM);
+    const celebTodayNameday  = clientsCache.filter(c => c.active !== false && hasValidOZ(c) && (c.nameday  || '').trim() === todayDDMM);
     const celebrantsToday = celebTodayBirthday.length + celebTodayNameday.length;
     const activeShipments = shipmentsCache.filter(s => s.pplStatus && s.pplStatus !== 'delivered' && s.pplStatus !== 'returned');
 

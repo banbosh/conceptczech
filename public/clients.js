@@ -41,15 +41,23 @@ const Clients = (() => {
     return dates;
   }
 
+  // Klient se počítá jako oslavenec jen pokud má přiřazené OZ (kadeřník od zástupce).
+  // CC (Concept Czech vlastní klienti) a e-shop (Shoptet koncoví) jsou vyloučeni.
+  const OZ_EXCLUDE = ['cc', 'eshop', 'e-shop', 'e shop', 'concept czech'];
+  function hasValidOZ(c) {
+    const oz = String(c.oz || '').trim().toLowerCase();
+    return oz && OZ_EXCLUDE.indexOf(oz) === -1;
+  }
+
   function getCelebrants(list, field) {
     const today = todayDDMM();
-    return list.filter(c => c[field] === today && c.active !== false);
+    return list.filter(c => c[field] === today && c.active !== false && hasValidOZ(c));
   }
 
   function getWeekCelebrants(list, field) {
     const week = thisWeekDDMM();
     const today = todayDDMM();
-    return list.filter(c => c[field] && week.includes(c[field]) && c[field] !== today && c.active !== false);
+    return list.filter(c => c[field] && week.includes(c[field]) && c[field] !== today && c.active !== false && hasValidOZ(c));
   }
 
   /* ========== Subscribe to Firestore ========== */
@@ -506,6 +514,12 @@ const Clients = (() => {
     html += '<div class="cl-detail-item"><span class="cl-detail-label">' + t('clientsOZ') + ':</span> ' + esc(client.oz || '-') + '</div>';
     html += '<div class="cl-detail-item"><span class="cl-detail-label">Narozeniny:</span> ' + esc(client.birthday || '-') + '</div>';
     html += '<div class="cl-detail-item"><span class="cl-detail-label">Svátek:</span> ' + esc(client.nameday || '-') + '</div>';
+    if (client.ico) {
+      html += '<div class="cl-detail-item"><span class="cl-detail-label">IČ:</span> ' + esc(client.ico) + '</div>';
+    }
+    if (client.dic) {
+      html += '<div class="cl-detail-item"><span class="cl-detail-label">DIČ:</span> ' + esc(client.dic) + '</div>';
+    }
     if (client.notes) {
       html += '<div class="cl-detail-item" style="grid-column:1/-1"><span class="cl-detail-label">Poznámky:</span> ' + esc(client.notes) + '</div>';
     }
@@ -920,15 +934,19 @@ const Clients = (() => {
       // kadeřníky (adresa salonu, kam jezdí PPL). Fakturační je osobní.
       // OZ je v Pohodě v kolonce 'Středisko' (firma tak používá středisko
       // pro přiřazení zástupce).
+      var salonName = find(['Firma (dod)', 'Firma', 'Jméno (dod)', 'Jméno', 'Název', 'Nazev', 'NazevFirmy', 'Company'], obj);
       var contactName = find(['Jméno (dod)', 'Kontaktní osoba', 'Kontaktni osoba', 'Kontakt', 'Osoba', 'JmenoPrijmeni', 'Contact'], obj);
       var rc = find(['Rodné číslo', 'Rodne cislo', 'RČ', 'RC', 'Birth number'], obj);
       var birthday = normalizeDDMM(find(['Datnar', 'Narozeniny', 'Datum narození', 'Datum narozeni', 'Birthday'], obj))
                   || extractBirthdayFromRC(rc);
+      // Svátek: nejdřív explicitní pole, pak z kontaktní osoby, pak ze jména salonu
+      // (např. 'Filip Cakirpaloglu' → 'Filip' → 26.05)
       var nameday = normalizeDDMM(find(['Svátek', 'Svatek', 'Nameday'], obj))
-                 || lookupNamedayByName(contactName);
+                 || lookupNamedayByName(contactName)
+                 || lookupNamedayByName(salonName);
 
       rows.push({
-        name: find(['Firma (dod)', 'Firma', 'Jméno (dod)', 'Jméno', 'Název', 'Nazev', 'NazevFirmy', 'Company'], obj),
+        name: salonName,
         contactPerson: contactName,
         email: find(['E-mail (dod)', 'E-mail', 'Email', 'Mail'], obj),
         phone: find(['Mobil', 'Telefon (dod)', 'Telefon', 'Tel', 'Phone'], obj),
