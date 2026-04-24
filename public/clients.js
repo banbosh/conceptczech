@@ -222,7 +222,7 @@ const Clients = (() => {
         var checked = selectedIds.has(c.id) ? ' checked' : '';
         html += '<tr class="cl-row" data-id="' + c.id + '">';
         html += '<td><input type="checkbox" class="cl-cb" data-id="' + c.id + '"' + checked + '></td>';
-        html += '<td><strong>' + esc(c.name) + '</strong></td>';
+        html += '<td><strong>' + esc(c.name) + '</strong>' + (c.ico ? '<div style="font-size:0.72rem;color:var(--gray-500);margin-top:2px">IČ: ' + esc(c.ico) + '</div>' : '') + '</td>';
         html += '<td>' + esc(c.contactPerson || '') + '</td>';
         html += '<td>' + esc(c.city || '') + '</td>';
         html += '<td>' + esc(c.oz || '') + '</td>';
@@ -662,14 +662,55 @@ const Clients = (() => {
         return;
       }
 
-      var preview = document.getElementById('import-preview');
-      var ph = '<div style="font-size:0.85rem;margin-bottom:8px"><strong>Náhled (' + rows.length + ' zaznamu):</strong></div>';
-      ph += '<div class="st-table-scroll"><table class="st-table" style="min-width:400px"><thead><tr><th>Firma</th><th>Email</th><th>Mesto</th><th>OZ</th></tr></thead><tbody>';
-      rows.slice(0, 5).forEach(function(r) {
-        ph += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.city) + '</td><td>' + esc(r.oz) + '</td></tr>';
+      // Debug do konzole — ukáže přesně co parser našel
+      console.log('[Pohoda import] Rozpoznáno ' + rows.length + ' řádků. Ukázka prvních 3:');
+      console.table(rows.slice(0, 3));
+
+      // Sumární statistika naplnění polí
+      var stats = { name: 0, email: 0, phone: 0, city: 0, oz: 0, ico: 0, birthday: 0, contactPerson: 0 };
+      rows.forEach(function(r) {
+        Object.keys(stats).forEach(function(k) { if (r[k]) stats[k]++; });
       });
-      if (rows.length > 5) ph += '<tr><td colspan="4" style="color:var(--gray-400);text-align:center">... a dalsich ' + (rows.length - 5) + '</td></tr>';
+      console.log('[Pohoda import] Naplněno polí:', stats);
+
+      var preview = document.getElementById('import-preview');
+      var ph = '<div style="font-size:0.9rem;margin-bottom:12px"><strong>Rozpoznáno ' + rows.length + ' záznamů</strong></div>';
+
+      // Přehled kolik záznamů má dané pole
+      ph += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+      var fieldsLabels = { name: 'Název', contactPerson: 'Kontakt', email: 'Email', phone: 'Telefon', city: 'Město', oz: 'OZ', ico: 'IČ', birthday: 'Narozeniny' };
+      Object.keys(fieldsLabels).forEach(function(k) {
+        var count = stats[k];
+        var pct = rows.length > 0 ? Math.round(count / rows.length * 100) : 0;
+        var color = pct === 0 ? 'var(--danger)' : (pct < 50 ? 'var(--warning)' : 'var(--success)');
+        ph += '<span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:' + color + '15;color:' + color + ';font-size:0.78rem;font-weight:600"><span style="width:6px;height:6px;border-radius:50%;background:' + color + '"></span>' + fieldsLabels[k] + ': ' + count + '/' + rows.length + '</span>';
+      });
+      ph += '</div>';
+
+      ph += '<div style="font-size:0.82rem;color:var(--gray-600);margin-bottom:6px">Ukázka prvních 5 řádků:</div>';
+      ph += '<div class="st-table-scroll" style="max-height:300px;overflow:auto"><table class="st-table" style="min-width:700px;font-size:0.78rem"><thead><tr><th>Název</th><th>Kontakt</th><th>Email</th><th>Město</th><th>OZ</th><th>IČ</th></tr></thead><tbody>';
+      rows.slice(0, 5).forEach(function(r) {
+        var dash = '<span style="color:var(--gray-400)">—</span>';
+        ph += '<tr>'
+          + '<td>' + (r.name ? esc(r.name) : dash) + '</td>'
+          + '<td>' + (r.contactPerson ? esc(r.contactPerson) : dash) + '</td>'
+          + '<td>' + (r.email ? esc(r.email) : dash) + '</td>'
+          + '<td>' + (r.city ? esc(r.city) : dash) + '</td>'
+          + '<td>' + (r.oz ? esc(r.oz) : dash) + '</td>'
+          + '<td>' + (r.ico ? esc(r.ico) : dash) + '</td>'
+          + '</tr>';
+      });
+      if (rows.length > 5) ph += '<tr><td colspan="6" style="color:var(--gray-500);text-align:center">… a dalších ' + (rows.length - 5) + '</td></tr>';
       ph += '</tbody></table></div>';
+
+      if (stats.oz === 0) {
+        ph += '<div style="background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:6px;margin-top:10px;font-size:0.85rem;color:var(--danger)">'
+          + '<strong>OZ se nenašlo u žádného záznamu.</strong><br>'
+          + 'Buď tvůj Pohoda export nemá sloupec "Odpovědná osoba" (nebo je prázdný pro všechny), nebo se jmenuje jinak. '
+          + 'Otevři F12 → Console, uvidíš jaké hodnoty parser přečetl a můžeš mi poslat screenshot.'
+          + '</div>';
+      }
+
       preview.innerHTML = ph;
       preview.classList.remove('hidden');
       document.getElementById('import-confirm').classList.remove('hidden');
