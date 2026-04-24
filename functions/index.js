@@ -1283,3 +1283,87 @@ function pickDeepName(obj) {
   }
   return null;
 }
+
+// ══════════════════════════════════════════════════════════════
+//  ARES — veřejný registr ekonomických subjektů
+//  Pro OSVČ často vrací datumNarozeni (YYYY-MM-DD).
+//  Pro právnické osoby vrací jen datumVzniku.
+// ══════════════════════════════════════════════════════════════
+
+exports.aresLookup = onCall({
+  region: 'europe-west1',
+  timeoutSeconds: 540,
+  memory: '512MiB',
+}, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Musíte být přihlášen.');
+  const email = (request.auth.token.email || '').toLowerCase();
+  const isAdm = /.+@conceptczech\.cz$/i.test(email) || ['knobloch.petr@gmail.com', 'info@banbosh.cz'].includes(email);
+  if (!isAdm) {
+    const userSnap = await db.collection('users').doc(request.auth.uid).get();
+    const role = userSnap.exists ? (userSnap.data().role || '') : '';
+    if (!['admin', 'office'].includes(role)) {
+      throw new HttpsError('permission-denied', 'Jen admin nebo office.');
+    }
+  }
+
+  const icos = Array.isArray(request.data && request.data.icos) ? request.data.icos : [];
+  if (icos.length === 0) return { ok: false, error: 'Chybí seznam IČO.' };
+
+  const results = {};
+  const batch = icos.slice(0, 200); // max 200 na jedno volání — delší by timeoutovalo
+
+  for (const raw of batch) {
+    const ico = String(raw || '').replace(/\D/g, '').padStart(8, '0');
+    if (ico.length !== 8 || ico === '00000000') {
+      results[raw] = { error: 'Neplatné IČO' };
+      continue;
+    }
+    try {
+      const res = await httpRequest({
+        hostname: 'ares.gov.cz',
+        path: '/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/' + ico,
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'User-Agent': 'ConceptCzechHQ/1.0' },
+      });
+      if (res.status >= 200 && res.status < 300 && res.body) {
+        const data = JSON.parse(res.body);
+        // ARES response struktura:
+        // - obchodniJmeno
+        // - datumVzniku (YYYY-MM-DD)
+        // - datumNarozeni (YYYY-MM-DD) — jen pro OSVČ
+        // - sidlo.{nazevUlice, cisloDomovni, nazevObce, psc, nazevOkresu}
+        // - pravniForma (číselný kód) + seznam názvů v datových polích
+        const dn = data.datumNarozeni || data.datum_narozeni || '';
+        const dv = data.datumVzniku || data.datum_vzniku || '';
+        const sidlo = data.sidlo || {};
+        results[raw] = {
+          name: data.obchodniJmeno || '',
+          datumNarozeni: dn,
+          datumVzniku: dv,
+          birthdayDDMM: dateToDDMM(dn),
+          city: sidlo.nazevObce || '',
+          street: (sidlo.nazevUlice ? sidlo.nazevUlice + (sidlo.cisloDomovni ? ' ' + sidlo.cisloDomovni : '') : ''),
+          zip: sidlo.psc ? String(sidlo.psc) : '',
+          pravniForma: data.pravniForma || '',
+        };
+      } else if (res.status === 404) {
+        results[raw] = { error: 'IČO nenalezeno v ARES' };
+      } else {
+        results[raw] = { error: 'HTTP ' + res.status };
+      }
+    } catch (e) {
+      results[raw] = { error: String(e.message || e).slice(0, 200) };
+    }
+    // Malé zpoždění, abychom ARES nezahltili (~20 req/s je bezpečné)
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  return { ok: true, results, processed: batch.length, hasMore: icos.length > batch.length };
+});
+
+function dateToDDMM(isoDate) {
+  if (!isoDate) return '';
+  const m = String(isoDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  return m[3] + '.' + m[2];
+}

@@ -140,6 +140,7 @@ const Clients = (() => {
     html += '<div><h1 class="page-title" style="margin-bottom:0">' + t('clientsTitle') + '</h1></div>';
     html += '<div class="flex gap-8" style="flex-wrap:wrap">';
     html += '<button class="btn btn-outline btn-sm" id="cl-import-btn">' + t('clientsImport') + '</button>';
+    html += '<button class="btn btn-outline btn-sm" id="cl-ares-btn">Dohledat z ARES</button>';
     html += '<button class="btn btn-primary btn-sm" id="cl-add-btn">+ ' + t('clientsAdd') + '</button>';
     html += '<button class="btn btn-accent btn-sm hidden" id="cl-bulk-email-btn">' + t('clientsSendEmail') + ' (<span id="cl-sel-count">0</span>)</button>';
     html += '<button class="btn btn-danger btn-sm hidden" id="cl-bulk-delete-btn">Smazat vybrané (<span id="cl-del-count">0</span>)</button>';
@@ -391,6 +392,59 @@ const Clients = (() => {
       } finally {
         bulkDelBtn.disabled = false;
       }
+    });
+
+    // ARES lookup button — dohledá narozeniny + adresu + jméno podle IČ
+    var aresBtn = container.querySelector('#cl-ares-btn');
+    if (aresBtn) aresBtn.addEventListener('click', async function() {
+      var candidates = clients.filter(function(c) { return c.ico && !c.birthday; });
+      if (candidates.length === 0) {
+        App.toast('Všichni klienti s IČO už mají narozeniny vyplněné (nebo žádného nemají).', 'info');
+        return;
+      }
+      if (!confirm('Chceš dohledat z ARES narozeniny pro ' + candidates.length + ' klientů? Může to trvat pár minut.')) return;
+
+      aresBtn.disabled = true;
+      var filled = 0, checked = 0, noBirthday = 0, errors = 0;
+
+      // Po 100 IČ (ARES nezahlcovat)
+      for (var i = 0; i < candidates.length; i += 100) {
+        var chunk = candidates.slice(i, i + 100);
+        aresBtn.textContent = 'ARES… (' + (i + chunk.length) + '/' + candidates.length + ')';
+        try {
+          var fn = firebase.app().functions('europe-west1').httpsCallable('aresLookup');
+          var res = await fn({ icos: chunk.map(function(c) { return c.ico; }) });
+          var data = res.data || {};
+          if (!data.ok) { errors++; continue; }
+
+          var batch = db.batch();
+          var batchCount = 0;
+
+          for (var j = 0; j < chunk.length; j++) {
+            var c = chunk[j];
+            var aresInfo = data.results && data.results[c.ico];
+            checked++;
+            if (!aresInfo || aresInfo.error) { errors++; continue; }
+            if (aresInfo.birthdayDDMM) {
+              batch.update(db.collection('clients').doc(c.id), { birthday: aresInfo.birthdayDDMM });
+              filled++;
+              batchCount++;
+              if (batchCount >= 400) { await batch.commit(); batch = db.batch(); batchCount = 0; }
+            } else {
+              noBirthday++;
+            }
+          }
+          if (batchCount > 0) await batch.commit();
+        } catch (e) {
+          console.error('ARES chunk error:', e);
+          errors++;
+        }
+      }
+
+      aresBtn.disabled = false;
+      aresBtn.textContent = 'Dohledat z ARES';
+      App.toast('ARES: zkontrolováno ' + checked + ', doplněno narozenin ' + filled + (noBirthday ? ', ' + noBirthday + ' bez data (právnická osoba)' : '') + (errors ? ', ' + errors + ' chyb' : ''), filled > 0 ? 'success' : 'info');
+      App.logActivity('clients_ares_lookup', 'zkontrolováno ' + checked + ', doplněno ' + filled);
     });
 
     // Wipe-all button (admin only)
