@@ -133,7 +133,17 @@ const Clients = (() => {
     const weekBirthday = getWeekCelebrants(clients, 'birthday');
     const weekNameday = getWeekCelebrants(clients, 'nameday');
 
-    let html = '<h1 class="page-title">' + t('clientsTitle') + '</h1>';
+    let html = '';
+
+    // Header row: title + akční tlačítka
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
+    html += '<div><h1 class="page-title" style="margin-bottom:0">' + t('clientsTitle') + '</h1></div>';
+    html += '<div class="flex gap-8" style="flex-wrap:wrap">';
+    html += '<button class="btn btn-outline btn-sm" id="cl-import-btn">' + t('clientsImport') + '</button>';
+    html += '<button class="btn btn-primary btn-sm" id="cl-add-btn">+ ' + t('clientsAdd') + '</button>';
+    html += '<button class="btn btn-accent btn-sm hidden" id="cl-bulk-email-btn">' + t('clientsSendEmail') + ' (<span id="cl-sel-count">0</span>)</button>';
+    html += '</div>';
+    html += '</div>';
 
     // Alerts
     if (todayBirthday.length || todayNameday.length || weekBirthday.length || weekNameday.length) {
@@ -154,43 +164,43 @@ const Clients = (() => {
       html += '</div>';
     }
 
-    // Toolbar
-    html += '<div class="cl-toolbar">';
-    html += '<div class="cl-search-row">';
-    html += '<input class="form-input cl-search" type="text" id="cl-search" placeholder="' + t('clientsSearch') + '" value="' + esc(searchQuery) + '">';
-    html += '</div>';
-    html += '<div class="cl-filters">';
-    html += '<select class="form-select cl-filter-select" id="cl-filter-oz">';
-    html += '<option value="">' + t('clientsOZ') + ' - ' + t('filterAll') + '</option>';
+    // Toolbar — vyhledávání + filtry v jednom řádku
+    html += '<div class="card" style="padding:14px 16px;margin-bottom:16px">';
+    html += '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">';
+    html += '<input class="form-input" type="text" id="cl-search" placeholder="' + t('clientsSearch') + '" value="' + esc(searchQuery) + '" style="flex:1;min-width:200px">';
+    html += '<select class="form-select" id="cl-filter-oz" style="min-width:180px;max-width:220px">';
+    html += '<option value="">Všichni OZ</option>';
     ozList.forEach(oz => {
       html += '<option value="' + esc(oz) + '"' + (filterOZ === oz ? ' selected' : '') + '>' + esc(oz) + '</option>';
     });
     html += '</select>';
-    html += '<select class="form-select cl-filter-select" id="cl-filter-city">';
-    html += '<option value="">' + t('clientsCity') + ' - ' + t('filterAll') + '</option>';
+    html += '<select class="form-select" id="cl-filter-city" style="min-width:180px;max-width:220px">';
+    html += '<option value="">Všechna města</option>';
     cityList.forEach(c => {
       html += '<option value="' + esc(c) + '"' + (filterCity === c ? ' selected' : '') + '>' + esc(c) + '</option>';
     });
     html += '</select>';
     html += '</div>';
-    html += '<div class="cl-actions">';
-    html += '<button class="btn btn-primary btn-sm" id="cl-add-btn">' + t('clientsAdd') + '</button>';
-    html += '<button class="btn btn-outline btn-sm" id="cl-import-btn">' + t('clientsImport') + '</button>';
-    html += '<button class="btn btn-accent btn-sm hidden" id="cl-bulk-email-btn">' + t('clientsSendEmail') + ' (<span id="cl-sel-count">0</span>)</button>';
-    html += '</div>';
-    html += '</div>';
-
-    // Sort controls
-    html += '<div class="cl-sort">';
-    html += '<span style="font-size:0.8rem;color:var(--gray-500);margin-right:8px">Seřadit:</span>';
+    // Sort controls — druhý řádek uvnitř stejné karty
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-200)">';
+    html += '<span style="font-size:0.78rem;color:var(--gray-500);margin-right:4px;text-transform:uppercase;letter-spacing:1px;font-weight:600">Seřadit</span>';
     html += '<button class="filter-chip' + (sortBy === 'name' ? ' active' : '') + '" data-sort="name">Název ' + (sortBy === 'name' ? (sortAsc ? '&uarr;' : '&darr;') : '') + '</button>';
     html += '<button class="filter-chip' + (sortBy === 'city' ? ' active' : '') + '" data-sort="city">Město ' + (sortBy === 'city' ? (sortAsc ? '&uarr;' : '&darr;') : '') + '</button>';
     html += '<button class="filter-chip' + (sortBy === 'oz' ? ' active' : '') + '" data-sort="oz">OZ ' + (sortBy === 'oz' ? (sortAsc ? '&uarr;' : '&darr;') : '') + '</button>';
     html += '</div>';
+    html += '</div>';
 
     // Table (desktop) / Cards (mobile)
     if (!filtered.length) {
-      html += '<div class="empty-state"><div class="empty-state-text">Žádní kadeřníci nenalezeni</div></div>';
+      if (clients.length === 0) {
+        html += '<div class="card" style="text-align:center;padding:48px 24px">';
+        html += '<div style="font-size:1rem;color:var(--gray-700);margin-bottom:8px;font-weight:600">Zatím tu nejsou žádní kadeřníci.</div>';
+        html += '<div style="color:var(--gray-500);font-size:0.88rem;margin-bottom:20px">Naimportuj je z Pohody nebo je přidej ručně.</div>';
+        html += '<button class="btn btn-primary btn-sm" id="cl-empty-import">Importovat z Pohody</button>';
+        html += '</div>';
+      } else {
+        html += '<div class="card" style="text-align:center;padding:28px"><div style="color:var(--gray-600)">Žádní kadeřníci neodpovídají filtru.</div></div>';
+      }
     } else {
       // Desktop table
       html += '<div class="cl-table-wrap"><table class="st-table cl-table">';
@@ -335,9 +345,12 @@ const Clients = (() => {
     var addBtn = container.querySelector('#cl-add-btn');
     if (addBtn) addBtn.addEventListener('click', showAddModal);
 
-    // Import button
+    // Import button (toolbar)
     var importBtn = container.querySelector('#cl-import-btn');
     if (importBtn) importBtn.addEventListener('click', showImportModal);
+    // Import button (empty state)
+    var emptyImportBtn = container.querySelector('#cl-empty-import');
+    if (emptyImportBtn) emptyImportBtn.addEventListener('click', showImportModal);
 
     // Bulk email button
     var bulkBtn = container.querySelector('#cl-bulk-email-btn');
@@ -535,25 +548,30 @@ const Clients = (() => {
     });
   }
 
-  /* ========== CSV Import ========== */
+  /* ========== Import z Pohody (CSV / XLSX) ========== */
   function showImportModal() {
     var html = '<div class="modal-header">';
-    html += '<div class="modal-title">' + t('clientsImport') + '</div>';
+    html += '<div class="modal-title">Import z Pohody</div>';
     html += '<button class="modal-close" onclick="App.closeModal()">&times;</button>';
     html += '</div>';
-    html += '<p style="font-size:0.85rem;color:var(--gray-600);margin-bottom:16px">';
-    html += 'Nahrajte CSV export z Pohody. Očekávané sloupce: Firma, IČO, Email, Telefon, Město, Ulice, Obchodní zástupce</p>';
+    html += '<div style="font-size:0.88rem;color:var(--gray-700);margin-bottom:16px;line-height:1.6">';
+    html += 'Nahraj CSV, XLSX nebo XLS export z Pohody. Aplikace automaticky rozpozná sloupce:';
+    html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">';
+    html += ['Firma', 'Email', 'Telefon', 'Město', 'Ulice', 'IČO', 'Obchodní zástupce', 'Narozeniny', 'Svátek'].map(function(c) {
+      return '<code style="background:var(--gray-100);padding:2px 8px;border-radius:4px;font-size:0.78rem">' + c + '</code>';
+    }).join('');
+    html += '</div></div>';
     html += '<div class="form-group">';
     html += '<label class="st-upload-btn" for="import-csv-file" style="cursor:pointer">';
     html += '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-    html += ' Vybrat CSV soubor</label>';
-    html += '<input type="file" id="import-csv-file" accept=".csv" style="display:none">';
+    html += ' Vybrat soubor (CSV / XLSX / XLS)</label>';
+    html += '<input type="file" id="import-csv-file" accept=".csv,.xlsx,.xls,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none">';
     html += '</div>';
     html += '<div id="import-preview" class="hidden"></div>';
     html += '<div class="form-group"><label class="form-label">Duplicity (stejný e-mail)</label>';
     html += '<select class="form-select" id="import-duplicity">';
+    html += '<option value="update">Aktualizovat (doporučeno)</option>';
     html += '<option value="skip">Přeskočit</option>';
-    html += '<option value="update">Aktualizovat</option>';
     html += '</select></div>';
     html += '<button class="btn btn-primary btn-block hidden" id="import-confirm">Importovat</button>';
 
@@ -564,8 +582,13 @@ const Clients = (() => {
     document.getElementById('import-csv-file').addEventListener('change', async function(e) {
       var file = e.target.files[0];
       if (!file) return;
-      var text = await file.text();
-      var rows = parseImportCSV(text);
+      var rows;
+      try {
+        rows = await parseImportFile(file);
+      } catch (err) {
+        App.toast('Chyba při čtení souboru: ' + (err.message || err), 'error');
+        return;
+      }
       importRows = rows;
 
       if (!rows.length) {
@@ -607,15 +630,35 @@ const Clients = (() => {
 
         if (existingId) {
           if (duplicity === 'skip') { skipped++; continue; }
-          operations.push({ type: 'update', id: existingId, data: {
-            name: row.name, phone: row.phone, city: row.city, address: row.address, oz: row.oz
-          }});
+          var updateData = {
+            name: row.name,
+            phone: row.phone || '',
+            city: row.city || '',
+            address: row.address || '',
+            oz: row.oz || ''
+          };
+          if (row.contactPerson) updateData.contactPerson = row.contactPerson;
+          if (row.birthday) updateData.birthday = row.birthday;
+          if (row.nameday) updateData.nameday = row.nameday;
+          if (row.ico) updateData.ico = row.ico;
+          if (row.dic) updateData.dic = row.dic;
+          operations.push({ type: 'update', id: existingId, data: updateData });
           updated++;
         } else {
           operations.push({ type: 'set', data: {
-            name: row.name, contactPerson: '', email: row.email, phone: row.phone,
-            city: row.city, address: row.address, oz: row.oz,
-            birthday: '', nameday: '', notes: '', active: true,
+            name: row.name,
+            contactPerson: row.contactPerson || '',
+            email: row.email || '',
+            phone: row.phone || '',
+            city: row.city || '',
+            address: row.address || '',
+            oz: row.oz || '',
+            birthday: row.birthday || '',
+            nameday: row.nameday || '',
+            ico: row.ico || '',
+            dic: row.dic || '',
+            notes: '',
+            active: true,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           }});
           imported++;
@@ -648,6 +691,29 @@ const Clients = (() => {
     });
   }
 
+  async function parseImportFile(file) {
+    var name = (file.name || '').toLowerCase();
+    var isXlsx = /\.xlsx?$/.test(name) ||
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.type === 'application/vnd.ms-excel';
+
+    if (isXlsx) {
+      if (!window.XLSX) throw new Error('Knihovna XLSX se nenačetla. Refreshni stránku (Ctrl+Shift+R).');
+      var buf = await file.arrayBuffer();
+      var wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      var sheetName = wb.SheetNames[0];
+      if (!sheetName) throw new Error('XLSX soubor neobsahuje žádný list.');
+      var ws = wb.Sheets[sheetName];
+      // Převedeme na CSV (middle layer) a pak rozparsujeme stejnou cestou
+      var csv = XLSX.utils.sheet_to_csv(ws, { FS: ';', RS: '\n' });
+      return parseImportCSV(csv);
+    }
+
+    // CSV / TSV / text
+    var text = await file.text();
+    return parseImportCSV(text);
+  }
+
   function parseImportCSV(text) {
     var lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
@@ -672,16 +738,40 @@ const Clients = (() => {
       headers.forEach(function(h, idx) { obj[h] = vals[idx] || ''; });
 
       rows.push({
-        name: find(['Firma', 'firma', 'Nazev', 'nazev', 'Jmeno'], obj),
-        email: find(['Email', 'email', 'E-mail', 'e-mail'], obj),
-        phone: find(['Telefon', 'telefon', 'Tel', 'tel'], obj),
-        city: find(['Mesto', 'mesto', 'City'], obj),
-        address: find(['Ulice', 'ulice', 'Adresa', 'adresa'], obj),
-        oz: find(['Obchodní zástupce', 'obchodni zastupce', 'OZ', 'Zastupce'], obj)
+        name: find(['Firma', 'firma', 'Nazev', 'nazev', 'Jmeno', 'Název', 'Jméno'], obj),
+        contactPerson: find(['Kontaktní osoba', 'Kontakt', 'Kontaktni', 'Contact'], obj),
+        email: find(['Email', 'email', 'E-mail', 'e-mail', 'Mail'], obj),
+        phone: find(['Telefon', 'telefon', 'Tel', 'tel', 'Mobil', 'Phone'], obj),
+        city: find(['Mesto', 'mesto', 'Město', 'City'], obj),
+        address: find(['Ulice', 'ulice', 'Adresa', 'adresa', 'Street'], obj),
+        oz: find(['Obchodní zástupce', 'obchodni zastupce', 'OZ', 'Zastupce', 'Zástupce'], obj),
+        birthday: normalizeDDMM(find(['Narozeniny', 'narozeniny', 'Datum narození', 'Birthday'], obj)),
+        nameday: normalizeDDMM(find(['Svátek', 'svatek', 'Nameday'], obj)),
+        ico: find(['IČO', 'ICO', 'ico'], obj),
+        dic: find(['DIČ', 'DIC', 'dic'], obj)
       });
     }
     return rows.filter(function(r) { return r.name; });
   }
+
+  // Pohoda obvykle ukládá datum ve formátu DD.MM.RRRR nebo RRRR-MM-DD
+  // Potřebujeme jen DD.MM pro oslavence.
+  function normalizeDDMM(val) {
+    if (!val) return '';
+    var s = String(val).trim();
+    // Formát DD.MM.YYYY nebo DD.MM
+    var m1 = s.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/);
+    if (m1) return pad2(m1[1]) + '.' + pad2(m1[2]);
+    // Formát YYYY-MM-DD
+    var m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m2) return pad2(m2[3]) + '.' + pad2(m2[2]);
+    // Formát D/M/YYYY
+    var m3 = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+    if (m3) return pad2(m3[1]) + '.' + pad2(m3[2]);
+    return s;
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
 
   /* ========== Email Sending ========== */
   function showEmailModal(clientId) {
