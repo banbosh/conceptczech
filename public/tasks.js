@@ -380,8 +380,7 @@ const Tasks = (() => {
         ? `<span class="task-assignee" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--primary-lighter);color:var(--primary-dark);border-radius:999px;font-size:0.72rem;font-weight:600">${App.escapeHtml(assigneeName)}</span>`
         : '';
 
-      return `<div class="task-row" data-task-id="${task.id}">
-        <div class="task-row-priority" style="background:${priorityColor}"></div>
+      return `<div class="task-row" data-task-id="${task.id}" style="border-top-color:${priorityColor}">
         <div class="task-row-body">
           <div class="task-row-top">
             <span class="task-row-title">${App.escapeHtml(task.title)}</span>

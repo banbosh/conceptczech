@@ -1,17 +1,14 @@
 /* ============================================================
    HOME — Úvodní dashboard po přihlášení
-   Shrnutí toho, co uživatele dnes čeká: úkoly, oslavenci, novinky,
-   zásilky. Funguje pro všechny role.
+   Optimalizované: jedno paralelní načtení přes Promise.all,
+   jeden paint, žádné živé subscripty (data se obnoví při přepnutí modulů).
    ============================================================ */
 const Home = (() => {
-  let unsubTasks = null;
-  let unsubBoard = null;
-  let unsubClients = null;
-  let unsubShipments = null;
   let tasksCache = [];
   let boardCache = [];
   let clientsCache = [];
   let shipmentsCache = [];
+  let loaded = false;
 
   function render() {
     const container = document.getElementById('view-home');
@@ -34,72 +31,64 @@ const Home = (() => {
         <div style="color:var(--gray-600);font-size:0.95rem;margin-top:4px">${formatTodayCs()}</div>
       </div>
       <div id="home-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px">
-        <div class="card"><div style="color:var(--gray-500)">Načítám…</div></div>
+        ${skeletonCard()}${skeletonCard()}${skeletonCard()}${skeletonCard()}
       </div>
       <div id="home-sections" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px"></div>
     `;
 
-    subscribeAll();
+    // Pokud už data máme v paměti (druhé otevření stránky), pusť paint hned
+    if (loaded) {
+      paint();
+    }
+    // Vždy refresh data na pozadí
+    loadData().then(paint).catch(e => {
+      console.warn('home load', e);
+      const stats = document.getElementById('home-stats');
+      if (stats) stats.innerHTML = `<div class="card" style="grid-column:1/-1"><div style="color:var(--gray-600)">Nepodařilo se načíst data. Zkontroluj připojení.</div></div>`;
+    });
   }
 
-  function subscribeAll() {
+  function skeletonCard() {
+    return `<div class="card" style="border-top:3px solid var(--gray-200)">
+      <div style="height:10px;width:60%;background:var(--gray-100);border-radius:4px"></div>
+      <div style="height:32px;width:40%;background:var(--gray-100);border-radius:4px;margin:10px 0"></div>
+      <div style="height:10px;width:70%;background:var(--gray-100);border-radius:4px"></div>
+    </div>`;
+  }
+
+  async function loadData() {
     const profile = Auth.getProfile();
     if (!profile) return;
+    const uid = profile.id, role = profile.role;
+    const isAdm = Auth.isAdmin(profile);
+    const hasShip = ['admin', 'office', 'warehouse', 'sales_cz', 'sales_sk'].includes(role) || isAdm;
+    const myName = (profile.displayName || '').trim();
 
-    if (!unsubTasks) {
-      unsubTasks = db.collection('tasks')
-        .orderBy('createdAt', 'desc')
-        .limit(300)
-        .onSnapshot(
-          snap => {
-            const uid = profile.id, role = profile.role;
-            tasksCache = snap.docs
-              .map(d => ({ id: d.id, ...d.data() }))
-              .filter(t => t.assignedTo === uid || t.assignedRole === role || t.assignedRole === 'all' || Auth.isAdmin(profile));
-            paint();
-          },
-          err => console.warn('home tasks', err.message)
-        );
-    }
-    if (!unsubBoard) {
-      unsubBoard = db.collection('board')
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .onSnapshot(
-          snap => {
-            boardCache = snap.docs
-              .map(d => ({ id: d.id, ...d.data() }))
-              .filter(b => !b.roles || b.roles.length === 0 || b.roles.includes('all') || b.roles.includes(profile.role) || Auth.isAdmin(profile));
-            paint();
-          },
-          err => console.warn('home board', err.message)
-        );
-    }
-    if (!unsubClients) {
-      unsubClients = db.collection('clients')
-        .orderBy('name')
-        .limit(2000)
-        .onSnapshot(
-          snap => {
-            clientsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            paint();
-          },
-          err => console.warn('home clients', err.message)
-        );
-    }
-    // Shipments jen pro role, co k nim mají přístup
-    const hasShip = ['admin', 'office', 'warehouse', 'sales_cz', 'sales_sk'].includes(profile.role) || Auth.isAdmin(profile);
-    if (hasShip && !unsubShipments) {
-      const myName = (profile.displayName || '').trim();
-      let q = db.collection('shipments').orderBy('createdAt', 'desc').limit(200);
-      if (profile.role === 'sales_cz' || profile.role === 'sales_sk') {
-        q = db.collection('shipments').where('oz', '==', myName).orderBy('createdAt', 'desc').limit(200);
-      }
-      unsubShipments = q.onSnapshot(
-        snap => { shipmentsCache = snap.docs.map(d => ({ id: d.id, ...d.data() })); paint(); },
-        err => console.warn('home shipments', err.message)
-      );
-    }
+    const shipmentsQuery = (role === 'sales_cz' || role === 'sales_sk')
+      ? db.collection('shipments').where('oz', '==', myName).limit(200)
+      : db.collection('shipments').orderBy('createdAt', 'desc').limit(200);
+
+    const promises = [
+      db.collection('tasks').where('status', '!=', 'done').limit(200).get().catch(() => ({ docs: [] })),
+      db.collection('board').orderBy('createdAt', 'desc').limit(10).get().catch(() => ({ docs: [] })),
+      db.collection('clients').orderBy('name').limit(2000).get().catch(() => ({ docs: [] })),
+      hasShip ? shipmentsQuery.get().catch(() => ({ docs: [] })) : Promise.resolve({ docs: [] }),
+    ];
+
+    const [tasksSnap, boardSnap, clientsSnap, shipmentsSnap] = await Promise.all(promises);
+
+    tasksCache = tasksSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(t => isAdm || t.assignedTo === uid || t.assignedRole === role || t.assignedRole === 'all');
+
+    boardCache = boardSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(b => isAdm || !b.roles || b.roles.length === 0 || b.roles.includes('all') || b.roles.includes(role));
+
+    clientsCache = clientsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    shipmentsCache = shipmentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    loaded = true;
   }
 
   function paint() {
@@ -110,7 +99,8 @@ const Home = (() => {
     const profile = Auth.getProfile();
     const now = new Date();
     const myTasks = tasksCache.filter(t => t.status !== 'done');
-    const overdue = myTasks.filter(t => t.dueDate && parseDue(t.dueDate) < new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+    const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const overdue = myTasks.filter(t => t.dueDate && parseDue(t.dueDate) < today0);
     const dueToday = myTasks.filter(t => t.dueDate && isSameDay(parseDue(t.dueDate), now) && !overdue.includes(t));
     const unreadBoard = boardCache.filter(b => {
       const last = (profile && profile.lastBoardReadAt) ? parseDue(profile.lastBoardReadAt) : null;
@@ -121,20 +111,17 @@ const Home = (() => {
     const celebTodayBirthday = clientsCache.filter(c => c.active !== false && (c.birthday || '').trim() === todayDDMM);
     const celebTodayNameday  = clientsCache.filter(c => c.active !== false && (c.nameday  || '').trim() === todayDDMM);
     const celebrantsToday = celebTodayBirthday.length + celebTodayNameday.length;
-
     const activeShipments = shipmentsCache.filter(s => s.pplStatus && s.pplStatus !== 'delivered' && s.pplStatus !== 'returned');
 
-    // Stats grid
     statsEl.innerHTML = [
       statCard('Úkoly k vyřešení', myTasks.length, overdue.length ? `${overdue.length} po termínu` : (dueToday.length ? `${dueToday.length} na dnes` : 'Vše v pořádku'), 'tasks', overdue.length ? 'var(--danger)' : 'var(--accent)'),
-      statCard('Dnešní oslavenci', celebrantsToday, celebrantsToday ? 'Klikni, pošli gratulaci' : 'Nikdo z klientů', 'clients', celebrantsToday ? 'var(--accent)' : 'var(--gray-300)'),
+      statCard('Dnešní oslavenci', celebrantsToday, celebrantsToday ? 'Pošli gratulaci' : 'Nikdo z klientů', 'clients', celebrantsToday ? 'var(--accent)' : 'var(--gray-300)'),
       statCard('Nové novinky', unreadBoard.length, unreadBoard.length ? 'Nepřečtené' : 'Vše přečteno', 'board', unreadBoard.length ? 'var(--primary)' : 'var(--gray-300)'),
-      activeShipments.length || profile.role === 'warehouse' || Auth.isAdmin(profile)
+      (activeShipments.length || profile.role === 'warehouse' || Auth.isAdmin(profile))
         ? statCard('Aktivní zásilky', activeShipments.length, 'V přepravě', 'shipments', 'var(--primary)')
         : ''
     ].filter(Boolean).join('');
 
-    // Sekce: úkoly po termínu / dnes, oslavenci dnes, poslední novinky
     let sections = '';
 
     if (overdue.length) {
@@ -150,10 +137,10 @@ const Home = (() => {
     if (celebrantsToday) {
       let content = '';
       celebTodayBirthday.forEach(c => {
-        content += `<div style="padding:8px 0;border-top:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:baseline"><strong>${escapeHtml(c.name || '')}</strong><span style="font-size:0.78rem;color:var(--gray-500)">narozeniny · ${escapeHtml(c.email || '')}</span></div>`;
+        content += `<div style="padding:8px 0;border-top:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:baseline"><strong>${escapeHtml(c.name || '')}</strong><span style="font-size:0.78rem;color:var(--gray-500)">narozeniny${c.email ? ' · ' + escapeHtml(c.email) : ''}</span></div>`;
       });
       celebTodayNameday.forEach(c => {
-        content += `<div style="padding:8px 0;border-top:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:baseline"><strong>${escapeHtml(c.name || '')}</strong><span style="font-size:0.78rem;color:var(--gray-500)">svátek · ${escapeHtml(c.email || '')}</span></div>`;
+        content += `<div style="padding:8px 0;border-top:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:baseline"><strong>${escapeHtml(c.name || '')}</strong><span style="font-size:0.78rem;color:var(--gray-500)">svátek${c.email ? ' · ' + escapeHtml(c.email) : ''}</span></div>`;
       });
       sections += sectionCard('Oslavenci dnes', 'var(--accent)', content);
     }
@@ -165,7 +152,7 @@ const Home = (() => {
           <div style="font-size:0.78rem;color:var(--gray-500);margin-top:2px">${b.authorName ? escapeHtml(b.authorName) + ' · ' : ''}${formatDate(b.createdAt)}</div>
           ${b.content ? `<div style="margin-top:6px;font-size:0.88rem;color:var(--gray-700);line-height:1.5">${escapeHtml(b.content.slice(0, 140))}${b.content.length > 140 ? '…' : ''}</div>` : ''}
         </div>
-      `).join('') + `<div style="text-align:center;margin-top:10px"><button class="btn btn-sm btn-outline" data-jump="board">Všechny novinky</button></div>`);
+      `).join(''));
     }
 
     if (activeShipments.length && (profile.role === 'warehouse' || Auth.isAdmin(profile) || profile.role === 'office')) {
@@ -176,16 +163,14 @@ const Home = (() => {
     }
 
     if (!sections) {
-      sections = `<div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:1rem;color:var(--gray-700);margin-bottom:8px">Žádné nevyřízené úkoly, žádní oslavenci, žádné nepřečtené novinky.</div><div style="color:var(--gray-500);font-size:0.9rem">Skvělá práce — využij klid k něčemu dobrému.</div></div>`;
+      sections = `<div class="card" style="text-align:center;padding:48px 24px;grid-column:1/-1"><div style="font-size:1rem;color:var(--gray-700);margin-bottom:8px">Žádné nevyřízené úkoly, žádní oslavenci, žádné nepřečtené novinky.</div><div style="color:var(--gray-500);font-size:0.9rem">Skvělá práce — využij klid k něčemu dobrému.</div></div>`;
     }
 
     sectEl.innerHTML = sections;
-
-    // Clicks → přepnout modul
-    container_clickJumps();
+    bindClickJumps();
   }
 
-  function container_clickJumps() {
+  function bindClickJumps() {
     const container = document.getElementById('view-home');
     if (!container) return;
     container.querySelectorAll('[data-jump]').forEach(el => {
@@ -252,12 +237,7 @@ const Home = (() => {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function destroy() {
-    if (unsubTasks)     { unsubTasks(); unsubTasks = null; }
-    if (unsubBoard)     { unsubBoard(); unsubBoard = null; }
-    if (unsubClients)   { unsubClients(); unsubClients = null; }
-    if (unsubShipments) { unsubShipments(); unsubShipments = null; }
-  }
+  function destroy() { /* no-op — cache reuse */ }
 
   return { render, destroy };
 })();

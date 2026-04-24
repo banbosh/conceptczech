@@ -388,6 +388,14 @@ const App = (() => {
     const drawerOz = document.getElementById('drawer-oz-shipments');
     if (sidebarOz) sidebarOz.classList.toggle('hidden', !showOz);
     if (drawerOz) drawerOz.classList.toggle('hidden', !showOz);
+
+    // Board (Nástěnka): Domů už ukazuje novinky, takže menu položku vidí jen admin
+    // (aby mohl vytvářet posty). Běžní uživatelé je čtou v Domů.
+    const showBoard = profile && Auth.isAdmin(profile);
+    const sidebarBoard = document.getElementById('sidebar-board');
+    const drawerBoard = document.getElementById('drawer-board');
+    if (sidebarBoard) sidebarBoard.classList.toggle('hidden', !showBoard);
+    if (drawerBoard) drawerBoard.classList.toggle('hidden', !showBoard);
   }
 
   /* ---------- Modal ---------- */

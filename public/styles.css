@@ -1053,7 +1053,7 @@ button, input, select, textarea {
   gap: 4px;
   padding: 10px 14px;
   border-radius: var(--radius);
-  border: 2px solid var(--gray-200);
+  border: 1px solid var(--gray-200);
   background: var(--white);
   cursor: pointer;
   transition: var(--transition);
@@ -1062,14 +1062,20 @@ button, input, select, textarea {
 }
 
 .dept-card:hover {
-  border-color: var(--dept-color, var(--primary));
+  border-color: var(--gray-300);
   box-shadow: var(--shadow-sm);
 }
 
 .dept-card.active {
-  border-color: var(--dept-color, var(--primary));
-  background: color-mix(in srgb, var(--dept-color, var(--primary)) 8%, white);
-  box-shadow: 0 0 0 1px var(--dept-color, var(--primary));
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+.dept-card.active .dept-card-label,
+.dept-card.active .dept-card-count {
+  color: var(--white);
 }
 
 .dept-card-emoji {
@@ -1118,14 +1124,16 @@ button, input, select, textarea {
 .task-rows {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .task-row {
   display: flex;
   align-items: stretch;
   background: var(--white);
-  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+  border-top: 3px solid var(--gray-300);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: var(--transition);
@@ -1133,18 +1141,17 @@ button, input, select, textarea {
 }
 
 .task-row:hover {
+  border-color: var(--gray-300);
   box-shadow: var(--shadow);
-  transform: translateY(-1px);
 }
 
 .task-row-priority {
-  width: 5px;
-  flex-shrink: 0;
+  display: none;
 }
 
 .task-row-body {
   flex: 1;
-  padding: 12px 14px;
+  padding: 14px 16px;
   min-width: 0;
 }
 
@@ -1195,28 +1202,29 @@ button, input, select, textarea {
 .dept-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 7px;
-  border-radius: 10px;
-  font-size: 0.65rem;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
   font-weight: 600;
-  background: color-mix(in srgb, var(--dept-color, var(--gray-500)) 12%, white);
-  color: var(--dept-color, var(--gray-700));
+  background: var(--gray-100);
+  color: var(--gray-700);
   white-space: nowrap;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
+  border: 1px solid var(--gray-200);
 }
 
 /* --- Tasks: Period badge --- */
 .period-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 7px;
-  border-radius: 10px;
-  font-size: 0.65rem;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
   font-weight: 600;
-  background: var(--info-light);
-  color: var(--info);
+  background: var(--primary-lighter);
+  color: var(--primary-dark);
   white-space: nowrap;
 }
 
