@@ -142,6 +142,10 @@ const Clients = (() => {
     html += '<button class="btn btn-outline btn-sm" id="cl-import-btn">' + t('clientsImport') + '</button>';
     html += '<button class="btn btn-primary btn-sm" id="cl-add-btn">+ ' + t('clientsAdd') + '</button>';
     html += '<button class="btn btn-accent btn-sm hidden" id="cl-bulk-email-btn">' + t('clientsSendEmail') + ' (<span id="cl-sel-count">0</span>)</button>';
+    html += '<button class="btn btn-danger btn-sm hidden" id="cl-bulk-delete-btn">Smazat vybrané (<span id="cl-del-count">0</span>)</button>';
+    if (Auth.isAdmin(Auth.getProfile()) && clients.length > 0) {
+      html += '<button class="btn btn-outline btn-sm" id="cl-wipe-btn" style="color:var(--danger);border-color:var(--danger)">Smazat vše</button>';
+    }
     html += '</div>';
     html += '</div>';
 
@@ -314,6 +318,12 @@ const Clients = (() => {
         bulkBtn.classList.toggle('hidden', selectedIds.size === 0);
         if (countSpan) countSpan.textContent = selectedIds.size;
       }
+      var delBtn = container.querySelector('#cl-bulk-delete-btn');
+      var delCount = container.querySelector('#cl-del-count');
+      if (delBtn) {
+        delBtn.classList.toggle('hidden', selectedIds.size === 0);
+        if (delCount) delCount.textContent = selectedIds.size;
+      }
     };
 
     container.querySelectorAll('.cl-cb, .cl-cb-m').forEach(function(cb) {
@@ -355,6 +365,62 @@ const Clients = (() => {
     // Bulk email button
     var bulkBtn = container.querySelector('#cl-bulk-email-btn');
     if (bulkBtn) bulkBtn.addEventListener('click', function() { showBulkEmailModal(); });
+
+    // Bulk delete button
+    var bulkDelBtn = container.querySelector('#cl-bulk-delete-btn');
+    if (bulkDelBtn) bulkDelBtn.addEventListener('click', async function() {
+      if (selectedIds.size === 0) return;
+      if (!confirm('Opravdu smazat ' + selectedIds.size + ' kadeřníků? Tuto akci nelze vrátit.')) return;
+      bulkDelBtn.disabled = true;
+      bulkDelBtn.textContent = 'Mažu…';
+      try {
+        var ids = Array.from(selectedIds);
+        // Firestore batch max = 500
+        for (var i = 0; i < ids.length; i += 400) {
+          var batch = db.batch();
+          ids.slice(i, i + 400).forEach(function(id) {
+            batch.delete(db.collection('clients').doc(id));
+          });
+          await batch.commit();
+        }
+        App.toast('Smazáno ' + ids.length + ' kadeřníků', 'success');
+        App.logActivity('clients_bulk_delete', ids.length + ' kadeřníků');
+        selectedIds.clear();
+      } catch (e) {
+        App.toast('Chyba: ' + (e.message || e), 'error');
+      } finally {
+        bulkDelBtn.disabled = false;
+      }
+    });
+
+    // Wipe-all button (admin only)
+    var wipeBtn = container.querySelector('#cl-wipe-btn');
+    if (wipeBtn) wipeBtn.addEventListener('click', async function() {
+      var confirm1 = prompt('Opravdu chceš smazat VŠECHNY kadeřníky (' + clients.length + ' záznamů)? Napiš "SMAZAT" pro potvrzení:');
+      if (confirm1 !== 'SMAZAT') {
+        App.toast('Zrušeno', 'info');
+        return;
+      }
+      wipeBtn.disabled = true;
+      wipeBtn.textContent = 'Mažu…';
+      try {
+        var allIds = clients.map(function(c) { return c.id; });
+        for (var i = 0; i < allIds.length; i += 400) {
+          var batch = db.batch();
+          allIds.slice(i, i + 400).forEach(function(id) {
+            batch.delete(db.collection('clients').doc(id));
+          });
+          await batch.commit();
+        }
+        App.toast('Smazáno ' + allIds.length + ' kadeřníků', 'success');
+        App.logActivity('clients_wipe_all', allIds.length + ' kadeřníků');
+        selectedIds.clear();
+      } catch (e) {
+        App.toast('Chyba: ' + (e.message || e), 'error');
+      } finally {
+        wipeBtn.disabled = false;
+      }
+    });
 
     // Individual email buttons
     container.querySelectorAll('.cl-email-btn').forEach(function(btn) {
