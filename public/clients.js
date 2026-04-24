@@ -148,7 +148,8 @@ const Clients = (() => {
     html += '<div><h1 class="page-title" style="margin-bottom:0">' + t('clientsTitle') + '</h1></div>';
     html += '<div class="flex gap-8" style="flex-wrap:wrap">';
     html += '<button class="btn btn-outline btn-sm" id="cl-import-btn">' + t('clientsImport') + '</button>';
-    html += '<button class="btn btn-outline btn-sm" id="cl-ares-btn">Dohledat z ARES</button>';
+    html += '<button class="btn btn-outline btn-sm" id="cl-ares-btn">Dohledat narozeniny (ARES)</button>';
+    html += '<button class="btn btn-outline btn-sm" id="cl-namedays-btn">Dohledat svátky</button>';
     html += '<button class="btn btn-primary btn-sm" id="cl-add-btn">+ ' + t('clientsAdd') + '</button>';
     html += '<button class="btn btn-accent btn-sm hidden" id="cl-bulk-email-btn">' + t('clientsSendEmail') + ' (<span id="cl-sel-count">0</span>)</button>';
     html += '<button class="btn btn-danger btn-sm hidden" id="cl-bulk-delete-btn">Smazat vybrané (<span id="cl-del-count">0</span>)</button>';
@@ -399,6 +400,40 @@ const Clients = (() => {
         App.toast('Chyba: ' + (e.message || e), 'error');
       } finally {
         bulkDelBtn.disabled = false;
+      }
+    });
+
+    // Dohledat svátky pro existující klienty (bez re-importu)
+    var nmBtn = container.querySelector('#cl-namedays-btn');
+    if (nmBtn) nmBtn.addEventListener('click', async function() {
+      var candidates = clients.filter(function(c) { return !c.nameday && (c.contactPerson || c.name); });
+      if (candidates.length === 0) {
+        App.toast('Všichni klienti už mají svátek vyplněný.', 'info');
+        return;
+      }
+      nmBtn.disabled = true;
+      nmBtn.textContent = 'Dohledávám…';
+      var filled = 0, notFound = 0;
+      try {
+        var batch = db.batch();
+        var batchCount = 0;
+        for (var i = 0; i < candidates.length; i++) {
+          var c = candidates[i];
+          var nd = lookupNamedayByName(c.contactPerson) || lookupNamedayByName(c.name);
+          if (!nd) { notFound++; continue; }
+          batch.update(db.collection('clients').doc(c.id), { nameday: nd });
+          filled++;
+          batchCount++;
+          if (batchCount >= 400) { await batch.commit(); batch = db.batch(); batchCount = 0; }
+        }
+        if (batchCount > 0) await batch.commit();
+        App.toast('Svátky doplněny: ' + filled + '/' + candidates.length + (notFound ? ' (' + notFound + ' nenalezeno)' : ''), 'success');
+        App.logActivity('clients_fill_namedays', 'doplněno ' + filled);
+      } catch (e) {
+        App.toast('Chyba: ' + (e.message || e), 'error');
+      } finally {
+        nmBtn.disabled = false;
+        nmBtn.textContent = 'Dohledat svátky';
       }
     });
 
