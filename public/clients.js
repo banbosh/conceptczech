@@ -642,6 +642,10 @@ const Clients = (() => {
           if (row.nameday) updateData.nameday = row.nameday;
           if (row.ico) updateData.ico = row.ico;
           if (row.dic) updateData.dic = row.dic;
+          if (row.zip) updateData.zip = row.zip;
+          if (row.region) updateData.region = row.region;
+          if (row.country) updateData.country = row.country;
+          if (row.website) updateData.website = row.website;
           operations.push({ type: 'update', id: existingId, data: updateData });
           updated++;
         } else {
@@ -652,12 +656,16 @@ const Clients = (() => {
             phone: row.phone || '',
             city: row.city || '',
             address: row.address || '',
+            zip: row.zip || '',
+            region: row.region || '',
+            country: row.country || '',
+            website: row.website || '',
             oz: row.oz || '',
             birthday: row.birthday || '',
             nameday: row.nameday || '',
             ico: row.ico || '',
             dic: row.dic || '',
-            notes: '',
+            notes: row.notes || '',
             active: true,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           }});
@@ -718,14 +726,24 @@ const Clients = (() => {
     var lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
     var headerLine = lines[0];
-    var delimiter = headerLine.includes(';') ? ';' : ',';
+    // Auto-detekce oddělovače: tabulátor > středník > čárka
+    var delimiter = headerLine.includes('\t') ? '\t' : (headerLine.includes(';') ? ';' : ',');
     var headers = headerLine.split(delimiter).map(function(h) { return h.trim().replace(/^"|"$/g, ''); });
     var rows = [];
 
+    // Hledání s prioritou přesné shody, fallback na includes
     var find = function(needles, obj) {
       var keys = Object.keys(obj);
+      // 1. pokus: přesná shoda (case insensitive)
       for (var n = 0; n < needles.length; n++) {
-        var k = keys.find(function(key) { return key.toLowerCase().includes(needles[n].toLowerCase()); });
+        var needle = needles[n].toLowerCase();
+        var exact = keys.find(function(key) { return key.toLowerCase() === needle; });
+        if (exact && obj[exact]) return obj[exact];
+      }
+      // 2. pokus: obsahuje
+      for (var n = 0; n < needles.length; n++) {
+        var needle = needles[n].toLowerCase();
+        var k = keys.find(function(key) { return key.toLowerCase().includes(needle); });
         if (k && obj[k]) return obj[k];
       }
       return '';
@@ -737,20 +755,25 @@ const Clients = (() => {
       var obj = {};
       headers.forEach(function(h, idx) { obj[h] = vals[idx] || ''; });
 
+      // Pohoda Adresář používá (dod) pro doručovací adresu — tu chceme pro
+      // kadeřníky (adresa salonu, kam jezdí PPL). Fakturační je osobní.
       rows.push({
-        name: find(['Firma', 'firma', 'Nazev', 'nazev', 'Jmeno', 'Název', 'Jméno', 'NazevFirmy', 'Nazev firmy', 'Company'], obj),
-        contactPerson: find(['Kontaktní osoba', 'Kontaktni osoba', 'Kontakt', 'Kontaktni', 'Contact', 'Kontaktní jméno', 'Osoba', 'JmenoPrijmeni', 'Jmeno a prijmeni', 'Jméno a příjmení'], obj),
-        email: find(['Email', 'email', 'E-mail', 'e-mail', 'Mail'], obj),
-        phone: find(['Telefon', 'telefon', 'Tel', 'tel', 'Mobil', 'Phone'], obj),
-        city: find(['Mesto dorucovaci', 'Město doručovací', 'Doručovací město', 'Dorucovaci mesto', 'Mesto', 'mesto', 'Město', 'City'], obj),
-        address: find(['Ulice dorucovaci', 'Ulice doručovací', 'Doručovací ulice', 'Dorucovaci ulice', 'Ulice', 'ulice', 'Adresa', 'adresa', 'Street'], obj),
-        zip: find(['PSČ doručovací', 'PSC dorucovaci', 'Doručovací PSČ', 'PSČ', 'PSC', 'Zip'], obj),
-        region: find(['Kraj', 'kraj', 'Region'], obj),
-        oz: find(['Obchodní zástupce', 'obchodni zastupce', 'OZ', 'Zastupce', 'Zástupce', 'Zastupci', 'ObchodniZastupce', 'Prodejce', 'Sales rep'], obj),
-        birthday: normalizeDDMM(find(['Narozeniny', 'narozeniny', 'Datum narození', 'Datum narozeni', 'Birthday'], obj)),
-        nameday: normalizeDDMM(find(['Svátek', 'Svatek', 'svatek', 'Nameday'], obj)),
-        ico: find(['IČO', 'ICO', 'ico', 'Identifikační číslo'], obj),
-        dic: find(['DIČ', 'DIC', 'dic', 'Daňové identifikační číslo'], obj)
+        name: find(['Firma (dod)', 'Firma', 'Jméno (dod)', 'Jméno', 'Název', 'Nazev', 'NazevFirmy', 'Company'], obj),
+        contactPerson: find(['Jméno (dod)', 'Kontaktní osoba', 'Kontaktni osoba', 'Kontakt', 'Osoba', 'JmenoPrijmeni', 'Contact'], obj),
+        email: find(['E-mail (dod)', 'E-mail', 'Email', 'Mail'], obj),
+        phone: find(['Mobil', 'Telefon (dod)', 'Telefon', 'Tel', 'Phone'], obj),
+        city: find(['Obec (dod)', 'Obec', 'Mesto', 'Město', 'City'], obj),
+        address: find(['Ulice (dod)', 'Ulice', 'Adresa', 'Street'], obj),
+        zip: find(['PSČ (dod)', 'PSC (dod)', 'PSČ', 'PSC', 'Zip'], obj),
+        region: find(['Kraj', 'Region'], obj),
+        oz: find(['Odpovědná osoba', 'Odpovedna osoba', 'Obchodní zástupce', 'OZ', 'Zastupce', 'Zástupce', 'Prodejce'], obj),
+        birthday: normalizeDDMM(find(['Datnar', 'Narozeniny', 'Datum narození', 'Datum narozeni', 'Birthday'], obj)),
+        nameday: normalizeDDMM(find(['Svátek', 'Svatek', 'Nameday'], obj)),
+        ico: find(['IČ', 'IC', 'IČO', 'ICO', 'Identifikační číslo'], obj),
+        dic: find(['DIČ', 'DIC', 'Daňové identifikační číslo'], obj),
+        country: find(['Země (dod)', 'Země', 'Stat', 'Country'], obj),
+        website: find(['WWW', 'Web'], obj),
+        notes: find(['Poznámka', 'Poznamka', 'Note'], obj)
       });
     }
     return rows.filter(function(r) { return r.name; });
