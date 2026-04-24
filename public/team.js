@@ -19,7 +19,7 @@ const Team = (() => {
     let html = `<h1 class="page-title">${App.t('teamTitle')}</h1>`;
 
     if (approved.length === 0) {
-      html += `<div class="empty-state"><div class="empty-state-text">-</div></div>`;
+      html += `<div class="empty-state"><div class="empty-state-text">Zatím v systému nejsou schválení uživatelé. Nový člen týmu se tu objeví, jakmile se přihlásí a admin ho schválí v modulu Admin.</div></div>`;
       container.innerHTML = html;
       return;
     }

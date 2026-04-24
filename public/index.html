@@ -77,6 +77,10 @@
       </div>
       <div class="drawer-user" id="drawer-user-info"></div>
       <div class="drawer-divider"></div>
+      <button class="drawer-item" data-module="home">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Domů
+      </button>
       <button class="drawer-item" data-module="tasks">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Úkoly
@@ -126,9 +130,14 @@
 
     <!-- Sidebar (desktop) -->
     <nav class="sidebar" id="sidebar-nav">
-      <button class="nav-item active" data-module="tasks">
+      <button class="nav-item active" data-module="home">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="nav-label">Domů</span>
+      </button>
+      <button class="nav-item" data-module="tasks">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span class="nav-label" data-i18n="navTasks">Úkoly</span>
+        <span class="nav-badge hidden" id="tasks-badge-sidebar">0</span>
       </button>
       <button class="nav-item" data-module="board">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
@@ -171,8 +180,11 @@
 
     <!-- Main Content -->
     <main class="app-content">
+      <!-- Home Module (úvodní dashboard) -->
+      <div class="module-view active" id="view-home"></div>
+
       <!-- Tasks Module -->
-      <div class="module-view active" id="view-tasks"></div>
+      <div class="module-view" id="view-tasks"></div>
 
       <!-- Board Module -->
       <div class="module-view" id="view-board"></div>
@@ -232,6 +244,7 @@
   <script src="firebase-config.js"></script>
   <script src="auth.js"></script>
   <script src="app.js"></script>
+  <script src="home.js"></script>
   <script src="tasks.js"></script>
   <script src="board.js"></script>
   <script src="calendar.js"></script>

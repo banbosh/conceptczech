@@ -272,7 +272,8 @@ const STRINGS = {
 /* ---------- APP STATE ---------- */
 const App = (() => {
   let lang = localStorage.getItem('cc_lang') || 'cs';
-  let activeModule = 'tasks';
+  let activeModule = 'home';
+  let _tasksBadgeUnsub = null;
   let usersCache = {};
 
   function t(key) {
@@ -329,6 +330,7 @@ const App = (() => {
 
   function renderActiveModule() {
     switch (activeModule) {
+      case 'home': Home.render(); break;
       case 'tasks': Tasks.render(); break;
       case 'board': Board.render(); break;
       case 'calendar': Calendar.render(); break;
@@ -652,6 +654,7 @@ const App = (() => {
       await loadAllUsers();
       updateAdminVisibility();
       renderActiveModule();
+      subscribeTasksBadge();
 
       // Listen for telegram commands (real-time)
       listenTelegramCommands();
@@ -691,6 +694,40 @@ const App = (() => {
     } catch (e) {
       el.textContent = '';
     }
+  }
+
+  function subscribeTasksBadge() {
+    if (_tasksBadgeUnsub) return;
+    const profile = Auth.getProfile();
+    if (!profile) return;
+    _tasksBadgeUnsub = db.collection('tasks')
+      .where('status', '!=', 'done')
+      .onSnapshot(snap => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        let overdue = 0, dueToday = 0;
+        const isAdm = Auth.isAdmin(profile);
+        snap.forEach(doc => {
+          const t = doc.data();
+          if (!isAdm) {
+            if (t.assignedTo !== profile.id && t.assignedRole !== profile.role && t.assignedRole !== 'all') return;
+          }
+          if (!t.dueDate) return;
+          const due = t.dueDate.toDate ? t.dueDate.toDate() : new Date(t.dueDate);
+          if (due < today) overdue++;
+          else if (due.getFullYear() === today.getFullYear() && due.getMonth() === today.getMonth() && due.getDate() === today.getDate()) dueToday++;
+        });
+        const total = overdue + dueToday;
+        const badge = document.getElementById('tasks-badge-sidebar');
+        if (badge) {
+          badge.textContent = total > 0 ? String(total) : '0';
+          badge.classList.toggle('hidden', total === 0);
+          badge.style.background = overdue > 0 ? 'var(--danger)' : 'var(--accent-dark)';
+          badge.title = overdue > 0
+            ? overdue + ' po termínu' + (dueToday ? ', ' + dueToday + ' dnes' : '')
+            : dueToday + ' úkolů na dnes';
+        }
+      }, err => console.warn('tasks badge', err.message));
   }
 
   function listenTelegramCommands() {

@@ -191,7 +191,7 @@ const Admin = (() => {
       await App.loadAllUsers();
       App.closeModal();
       render();
-      App.toast('OK', 'success');
+      App.toast('Uloženo', 'success');
     });
 
     document.getElementById('toggle-active-btn').addEventListener('click', async () => {
@@ -209,7 +209,7 @@ const Admin = (() => {
       .limit(20)
       .onSnapshot(snap => {
         if (snap.empty) {
-          container.innerHTML = '<div style="font-size:0.85rem;color:var(--gray-500)">-</div>';
+          container.innerHTML = '<div style="font-size:0.85rem;color:var(--gray-500);padding:8px 0">Zatím žádné příkazy z Telegramu.</div>';
           return;
         }
         let html = '';
@@ -231,7 +231,7 @@ const Admin = (() => {
       .limit(30)
       .onSnapshot(snap => {
         if (snap.empty) {
-          container.innerHTML = '<div style="font-size:0.85rem;color:var(--gray-500)">-</div>';
+          container.innerHTML = '<div style="font-size:0.85rem;color:var(--gray-500);padding:8px 0">Zatím žádná zaznamenaná aktivita.</div>';
           return;
         }
         let html = '';
