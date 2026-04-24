@@ -239,6 +239,25 @@ const Tasks = (() => {
     '28.12': 'Bohumila', '29.12': 'Judita', '30.12': 'David', '31.12': 'Silvestr'
   };
 
+  // Exponovat reverzní mapu jméno → DD.MM pro ostatní moduly
+  // (clients.js to používá pro auto-doplnění svátku při importu z Pohody).
+  if (typeof window !== 'undefined' && !window.CZ_NAMEDAYS_REVERSE) {
+    window.CZ_NAMEDAYS_REVERSE = {};
+    Object.keys(CZ_NAMEDAYS).forEach(function(date) {
+      var label = CZ_NAMEDAYS[date];
+      if (!label) return;
+      // Rozdělit složená jména ('Cyril a Metoděj', 'Petr a Pavel')
+      String(label).split(/\s+a\s+|\s*,\s*/).forEach(function(part) {
+        var norm = String(part || '').toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z]/g, '');
+        if (norm.length >= 3 && !window.CZ_NAMEDAYS_REVERSE[norm]) {
+          window.CZ_NAMEDAYS_REVERSE[norm] = date;
+        }
+      });
+    });
+  }
+
   function renderCelebrantsWidget() {
     const d = new Date();
     const today = String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');

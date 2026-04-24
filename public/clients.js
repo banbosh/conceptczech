@@ -864,26 +864,72 @@ const Clients = (() => {
 
       // Pohoda Adresář používá (dod) pro doručovací adresu — tu chceme pro
       // kadeřníky (adresa salonu, kam jezdí PPL). Fakturační je osobní.
+      // OZ je v Pohodě v kolonce 'Středisko' (firma tak používá středisko
+      // pro přiřazení zástupce).
+      var contactName = find(['Jméno (dod)', 'Kontaktní osoba', 'Kontaktni osoba', 'Kontakt', 'Osoba', 'JmenoPrijmeni', 'Contact'], obj);
+      var rc = find(['Rodné číslo', 'Rodne cislo', 'RČ', 'RC', 'Birth number'], obj);
+      var birthday = normalizeDDMM(find(['Datnar', 'Narozeniny', 'Datum narození', 'Datum narozeni', 'Birthday'], obj))
+                  || extractBirthdayFromRC(rc);
+      var nameday = normalizeDDMM(find(['Svátek', 'Svatek', 'Nameday'], obj))
+                 || lookupNamedayByName(contactName);
+
       rows.push({
         name: find(['Firma (dod)', 'Firma', 'Jméno (dod)', 'Jméno', 'Název', 'Nazev', 'NazevFirmy', 'Company'], obj),
-        contactPerson: find(['Jméno (dod)', 'Kontaktní osoba', 'Kontaktni osoba', 'Kontakt', 'Osoba', 'JmenoPrijmeni', 'Contact'], obj),
+        contactPerson: contactName,
         email: find(['E-mail (dod)', 'E-mail', 'Email', 'Mail'], obj),
         phone: find(['Mobil', 'Telefon (dod)', 'Telefon', 'Tel', 'Phone'], obj),
         city: find(['Obec (dod)', 'Obec', 'Mesto', 'Město', 'City'], obj),
         address: find(['Ulice (dod)', 'Ulice', 'Adresa', 'Street'], obj),
         zip: find(['PSČ (dod)', 'PSC (dod)', 'PSČ', 'PSC', 'Zip'], obj),
         region: find(['Kraj', 'Region'], obj),
-        oz: find(['Odpovědná osoba', 'Odpovedna osoba', 'Obchodní zástupce', 'OZ', 'Zastupce', 'Zástupce', 'Prodejce'], obj),
-        birthday: normalizeDDMM(find(['Datnar', 'Narozeniny', 'Datum narození', 'Datum narozeni', 'Birthday'], obj)),
-        nameday: normalizeDDMM(find(['Svátek', 'Svatek', 'Nameday'], obj)),
+        oz: find(['Středisko', 'Stredisko', 'Odpovědná osoba', 'Odpovedna osoba', 'Obchodní zástupce', 'OZ', 'Zastupce', 'Zástupce', 'Prodejce'], obj),
+        birthday: birthday,
+        nameday: nameday,
         ico: find(['IČ', 'IC', 'IČO', 'ICO', 'Identifikační číslo'], obj),
         dic: find(['DIČ', 'DIC', 'Daňové identifikační číslo'], obj),
         country: find(['Země (dod)', 'Země', 'Stat', 'Country'], obj),
         website: find(['WWW', 'Web'], obj),
-        notes: find(['Poznámka', 'Poznamka', 'Note'], obj)
+        notes: find(['Poznámka', 'Poznamka', 'Note'], obj),
+        rc: rc
       });
     }
     return rows.filter(function(r) { return r.name; });
+  }
+
+  /* ========== Rodné číslo → narozeniny DD.MM ========== */
+  // České rodné číslo: YYMMDD/XXXX
+  // Ženy mají měsíc +50. Pro ročníky po 2003 se někdy přidává +20 k měsíci.
+  function extractBirthdayFromRC(rc) {
+    if (!rc) return '';
+    var clean = String(rc).replace(/[^\d]/g, '');
+    if (clean.length < 6) return '';
+    var mm = parseInt(clean.slice(2, 4), 10);
+    var dd = parseInt(clean.slice(4, 6), 10);
+    if (mm > 50) mm -= 50; // žena
+    if (mm > 20) mm -= 20; // opravný měsíc (po 2004 pro nedostatek čísel)
+    if (!mm || mm < 1 || mm > 12 || !dd || dd < 1 || dd > 31) return '';
+    return String(dd).padStart(2, '0') + '.' + String(mm).padStart(2, '0');
+  }
+
+  /* ========== Svátek podle křestního jména ========== */
+  // Najde DD.MM svátku pro dané jméno (první slovo kontaktu nebo názvu).
+  function lookupNamedayByName(fullName) {
+    if (!fullName || !window.CZ_NAMEDAYS_REVERSE) return '';
+    var norm = function(s) {
+      return String(s || '').toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9 ]/g, '')
+        .trim();
+    };
+    // Zkusíme nejdřív první slovo (křestní jméno)
+    var parts = String(fullName).trim().split(/\s+/);
+    for (var i = 0; i < parts.length; i++) {
+      var candidate = norm(parts[i]);
+      if (!candidate) continue;
+      var hit = window.CZ_NAMEDAYS_REVERSE[candidate];
+      if (hit) return hit;
+    }
+    return '';
   }
 
   // Pohoda obvykle ukládá datum ve formátu DD.MM.RRRR nebo RRRR-MM-DD
