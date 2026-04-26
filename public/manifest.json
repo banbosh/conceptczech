@@ -2,7 +2,7 @@
   "name": "Banbosh Football: Mini Soccer",
   "short_name": "Banbosh Football",
   "description": "Minimalist football duel - play AI, tournament or league!",
-  "start_url": "/?app=1",
+  "start_url": "/",
   "id": "/",
   "display": "standalone",
   "orientation": "portrait",
