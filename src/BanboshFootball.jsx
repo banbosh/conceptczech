@@ -701,8 +701,8 @@ export default function FootballGame(){
       <button onClick={()=>{sfx.click();setMode("league");setSel(null);setLeagueDiv(3);setScr("playerName")}} style={ubtn({width:"100%",maxWidth:280,marginBottom:10,fontSize:"1em"})}>{t("league")}</button>
       <button onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={ubtn({width:"100%",maxWidth:280,fontSize:"1em"})}>{t("online")}</button>
       <div style={{marginTop:16,display:"flex",gap:16,justifyContent:"center"}}>
-        <button onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={{background:"#22d3ee",border:"none",borderRadius:12,color:"#000",fontSize:"0.9em",cursor:"pointer",padding:"10px 16px",fontWeight:700}}>❓ {t("tutorial")}</button>
-        <button onClick={()=>{sfx.click();setScr("legal")}} style={{background:"#22d3ee",border:"none",borderRadius:12,color:"#000",fontSize:"0.9em",cursor:"pointer",padding:"10px 16px",fontWeight:700}}>📜 {t("legal")}</button>
+        <button onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={{background:"#22d3ee",border:"none",borderRadius:12,color:"#000",fontSize:"0.9em",cursor:"pointer",padding:"10px 16px",fontWeight:700}}>{t("tutorial")}</button>
+        <button onClick={()=>{sfx.click();setScr("legal")}} style={{background:"#22d3ee",border:"none",borderRadius:12,color:"#000",fontSize:"0.9em",cursor:"pointer",padding:"10px 16px",fontWeight:700}}>{t("legal")}</button>
       </div>
     </div><Footer/>
   </Fade></div>);
