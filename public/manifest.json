@@ -1,0 +1,26 @@
+{
+  "name": "Banbosh Football: Mini Soccer",
+  "short_name": "Banbosh Football",
+  "description": "Minimalist football duel - play AI, tournament or league!",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e17",
+  "theme_color": "#22d3ee",
+  "categories": ["games", "sports"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

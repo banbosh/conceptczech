@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.banbosh.football",
+        "sha256_cert_fingerprints": ["B7:21:CE:50:A0:CE:AB:16:41:A5:90:DE:57:10:C9:20:68:E0:43:3B:45:A8:8A:4A:39:A3:34:91:DB:E1:97:FD"]
+      }
+    }]

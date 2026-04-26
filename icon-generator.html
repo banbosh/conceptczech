@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Banbosh Icon Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; background: #1a1a2e; color: white; }
+    h1 { color: #22d3ee; }
+    .preview { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+    .icon-box { text-align: center; background: #2a2a4e; padding: 20px; border-radius: 12px; }
+    .icon-box canvas { border-radius: 18%; }
+    .icon-box p { margin: 10px 0 0; font-size: 14px; }
+    button { background: #22d3ee; color: #0a0e17; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px 5px; }
+    button:hover { background: #06b6d4; }
+  </style>
+</head>
+<body>
+  <h1>🎮 Banbosh Football - Icon Generator</h1>
+  <p>Klikni na tlačítka níže pro stažení ikon.</p>
+  <div class="preview" id="preview"></div>
+  <div>
+    <button onclick="downloadIcon(512)">⬇️ Stáhnout 512x512</button>
+    <button onclick="downloadIcon(192)">⬇️ Stáhnout 192x192</button>
+  </div>
+  <script>
+    function drawIcon(ctx, size) {
+      const s = size / 512;
+      ctx.beginPath();
+      const r = 90 * s;
+      ctx.moveTo(r, 0); ctx.lineTo(size - r, 0);
+      ctx.quadraticCurveTo(size, 0, size, r);
+      ctx.lineTo(size, size - r);
+      ctx.quadraticCurveTo(size, size, size - r, size);
+      ctx.lineTo(r, size);
+      ctx.quadraticCurveTo(0, size, 0, size - r);
+      ctx.lineTo(0, r);
+      ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.closePath(); ctx.clip();
+      const stripeColors = ['#2e8b4e', '#2a7d46'];
+      for (let i = 0; i < 8; i++) { ctx.fillStyle = stripeColors[i % 2]; ctx.fillRect(0, i * 64 * s, size, 64 * s); }
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 3 * s;
+      ctx.strokeRect(30 * s, 30 * s, 452 * s, 452 * s);
+      ctx.beginPath(); ctx.moveTo(30 * s, 256 * s); ctx.lineTo(482 * s, 256 * s); ctx.stroke();
+      ctx.beginPath(); ctx.arc(256 * s, 256 * s, 50 * s, 0, Math.PI * 2); ctx.stroke();
+      function drawPlayer(x, y, jerseyColor, number, hairColor) {
+        ctx.save(); ctx.translate(x * s, y * s);
+        ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(1, 56, 28, 8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(-14, 48, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(14, 48, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#f0c8a0'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-10, 28); ctx.lineTo(-14, 42); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(10, 28); ctx.lineTo(14, 42); ctx.stroke();
+        ctx.fillStyle = jerseyColor; ctx.beginPath(); ctx.ellipse(0, 8, 32, 28, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, 28, 24, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#f0c8a0'; ctx.lineWidth = 9;
+        ctx.beginPath(); ctx.moveTo(-30, 4); ctx.lineTo(-44, 20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(30, 4); ctx.lineTo(44, 20); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(number, 0, 14);
+        ctx.fillStyle = '#f5d0a9'; ctx.beginPath(); ctx.arc(0, -28, 20, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = hairColor; ctx.beginPath();
+        ctx.moveTo(-16, -38); ctx.quadraticCurveTo(0, -55, 16, -38);
+        ctx.quadraticCurveTo(18, -48, 0, -52); ctx.quadraticCurveTo(-18, -48, -16, -38); ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.arc(-7, -28, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(7, -28, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#c47a5a'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(-8, -20); ctx.quadraticCurveTo(0, -14, 8, -20); ctx.stroke();
+        ctx.restore();
+      }
+      drawPlayer(256, 135, '#2563EB', '7', '#3b2507');
+      drawPlayer(256, 377, '#DC2626', '10', '#1a1a1a');
+      ctx.save(); ctx.translate(256 * s, 256 * s);
+      ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(2, 32, 22, 6, 0, 0, Math.PI * 2); ctx.fill();
+      const grad = ctx.createRadialGradient(-8, -8, 0, 0, 0, 28);
+      grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#e0e0e0');
+      ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+    function generatePreviews() {
+      const preview = document.getElementById('preview');
+      [512, 192].forEach(size => {
+        const box = document.createElement('div'); box.className = 'icon-box';
+        const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+        drawIcon(canvas.getContext('2d'), size);
+        box.appendChild(canvas);
+        const p = document.createElement('p'); p.textContent = `${size}x${size}`; box.appendChild(p);
+        preview.appendChild(box);
+      });
+    }
+    function downloadIcon(size) {
+      const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+      drawIcon(canvas.getContext('2d'), size);
+      const link = document.createElement('a');
+      link.download = `icon-${size}x${size}.png`;
+      link.href = canvas.toDataURL('image/png'); link.click();
+    }
+    generatePreviews();
+  </script>
+</body>
+</html>

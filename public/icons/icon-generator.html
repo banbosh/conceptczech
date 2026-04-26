@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Banbosh Icon Generator</title>
+  <style>
+    body { font-family: Arial; padding: 40px; background: #1a1a2e; color: white; text-align: center; }
+    canvas { border: 2px solid #22d3ee; margin: 10px; }
+    button { background: #22d3ee; color: black; border: none; padding: 20px 40px; font-size: 20px; font-weight: bold; margin: 10px; cursor: pointer; border-radius: 10px; }
+    button:hover { background: #06b6d4; }
+    h1 { color: #22d3ee; }
+  </style>
+</head>
+<body>
+  <h1>🎮 Banbosh Football - Ikony</h1>
+  <p>Klikni na tlačítko pro stažení</p>
+  
+  <div>
+    <canvas id="c512" width="512" height="512"></canvas>
+    <canvas id="c192" width="192" height="192"></canvas>
+  </div>
+  
+  <div>
+    <button onclick="download(512)">⬇️ STÁHNOUT 512x512</button>
+    <button onclick="download(192)">⬇️ STÁHNOUT 192x192</button>
+  </div>
+
+<script>
+// Nejdřív vytvoříme emoji jako obrázek
+function createEmojiImage(emoji, size, callback) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.font = `${size * 0.9}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, size/2, size/2);
+  
+  const img = new Image();
+  img.onload = () => callback(img);
+  img.src = canvas.toDataURL();
+}
+
+function draw(canvas, ballImg) {
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width;
+  const s = size / 512;
+
+  // BEZ zaoblených rohů - rovný čtverec až do rohů
+
+  // Tráva - pruhy
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#2e8b4e' : '#2a7d46';
+    ctx.fillRect(0, i * 64 * s, size, 64 * s);
+  }
+
+  // Čáry hřiště
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 3 * s;
+  ctx.strokeRect(30 * s, 30 * s, 452 * s, 452 * s);
+  
+  ctx.beginPath();
+  ctx.moveTo(30 * s, 256 * s);
+  ctx.lineTo(482 * s, 256 * s);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.arc(256 * s, 256 * s, 50 * s, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Branky
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillRect(180 * s, 30 * s, 152 * s, 35 * s);
+  ctx.fillRect(180 * s, 447 * s, 152 * s, 35 * s);
+
+  // Hráč funkce
+  function drawPlayer(x, y, jerseyColor, jerseyStroke, number, hairColor) {
+    ctx.save();
+    ctx.translate(x * s, y * s);
+    
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(1 * s, 56 * s, 28 * s, 8 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(-14 * s, 48 * s, 8 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(14 * s, 48 * s, 8 * s, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = '#f0c8a0';
+    ctx.lineWidth = 10 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-10 * s, 28 * s);
+    ctx.lineTo(-14 * s, 42 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(10 * s, 28 * s);
+    ctx.lineTo(14 * s, 42 * s);
+    ctx.stroke();
+    
+    ctx.fillStyle = jerseyColor;
+    ctx.beginPath();
+    ctx.ellipse(0, 8 * s, 32 * s, 28 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = jerseyStroke;
+    ctx.lineWidth = 2 * s;
+    ctx.stroke();
+    
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(0, 28 * s, 24 * s, 10 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = '#f0c8a0';
+    ctx.lineWidth = 9 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-30 * s, 4 * s);
+    ctx.lineTo(-44 * s, 20 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(30 * s, 4 * s);
+    ctx.lineTo(44 * s, 20 * s);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${22 * s}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(number, 0, 10 * s);
+    
+    ctx.fillStyle = '#f5d0a9';
+    ctx.beginPath();
+    ctx.arc(0, -28 * s, 20 * s, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = hairColor;
+    ctx.beginPath();
+    ctx.moveTo(-16 * s, -38 * s);
+    ctx.quadraticCurveTo(0, -55 * s, 16 * s, -38 * s);
+    ctx.quadraticCurveTo(18 * s, -48 * s, 0, -52 * s);
+    ctx.quadraticCurveTo(-18 * s, -48 * s, -16 * s, -38 * s);
+    ctx.fill();
+    
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(-7 * s, -28 * s, 3.5 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(7 * s, -28 * s, 3.5 * s, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = '#c47a5a';
+    ctx.lineWidth = 2.5 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-8 * s, -20 * s);
+    ctx.quadraticCurveTo(0, -14 * s, 8 * s, -20 * s);
+    ctx.stroke();
+    
+    ctx.restore();
+  }
+
+  drawPlayer(256, 135, '#2563EB', '#1E40AF', '7', '#3b2507');
+  drawPlayer(256, 377, '#DC2626', '#991B1B', '10', '#1a1a1a');
+
+  // Stín pod míčem
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(256 * s, 290 * s, 28 * s, 8 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Emoji míč ⚽ jako obrázek
+  const ballSize = 60 * s;
+  ctx.drawImage(ballImg, 256 * s - ballSize/2, 256 * s - ballSize/2, ballSize, ballSize);
+}
+
+// Vytvoř emoji obrázek a nakresli
+createEmojiImage('⚽', 120, function(ballImg) {
+  draw(document.getElementById('c512'), ballImg);
+  draw(document.getElementById('c192'), ballImg);
+  
+  window.ballImg = ballImg;
+});
+
+function download(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  draw(canvas, window.ballImg);
+  
+  const link = document.createElement('a');
+  link.download = 'icon-' + size + 'x' + size + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+</script>
+</body>
+</html>
