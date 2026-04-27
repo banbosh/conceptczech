@@ -770,7 +770,11 @@ export default function FootballGame(){
     .mGhost{transition:transform .15s ease,background .2s ease,border-color .2s ease}
     .mGhost:active{transform:scale(.95)}
     @keyframes primaryPulse{0%,100%{box-shadow:0 4px 20px rgba(34,211,238,.28)}50%{box-shadow:0 6px 32px rgba(34,211,238,.55)}}
-    @keyframes bgPan{0%,100%{transform:scale(1.08) translate(0,0)}50%{transform:scale(1.10) translate(-1.5%,-1.5%)}}
+    @keyframes orbA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,-32px) scale(1.12)}}
+    @keyframes orbB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-34px,28px) scale(.92)}}
+    @keyframes orbC{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,28px) scale(1.05)}}
+    @keyframes meshHue{0%{filter:hue-rotate(0deg)}100%{filter:hue-rotate(40deg)}}
+    @keyframes glowLine{0%,100%{opacity:.4;transform:scaleX(1)}50%{opacity:.85;transform:scaleX(1.04)}}
     .mItemPrimary{animation:primaryPulse 2.6s ease-in-out infinite}`;
   const ctn={width:"100vw",height:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s"};
   const panel={background:cc.card,borderRadius:"29px",boxShadow:theme==="dark"?"0 8px 40px rgba(0,0,0,0.5)":"0 8px 30px rgba(60,40,20,0.06)",width:"90%",maxWidth:"420px",padding:"25px 20px",display:"flex",flexDirection:"column",alignItems:"center",border:`1.8px solid ${cc.cardBorder}`,transition:"background 0.33s",backdropFilter:"blur(16px)"};
@@ -836,8 +840,13 @@ export default function FootballGame(){
     };
     return(<div style={{...ctn,position:"relative",overflow:"hidden"}}>
       <style>{css}</style>
-      <div aria-hidden="true" style={{position:"absolute",inset:0,backgroundImage:"url(/intro.png)",backgroundSize:"cover",backgroundPosition:"center 30%",filter:"blur(3px) saturate(1.05)",transform:"scale(1.08)",opacity:.55,zIndex:0,pointerEvents:"none",animation:"bgPan 24s ease-in-out infinite"}}/>
-      <div aria-hidden="true" style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(10,14,23,.55) 0%,rgba(10,14,23,.4) 35%,rgba(10,14,23,.7) 100%)",zIndex:0,pointerEvents:"none"}}/>
+      {/* Subtle radial mesh gradient that animates color */}
+      <div aria-hidden="true" style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 20% 25%,rgba(99,102,241,0.22),transparent 55%),radial-gradient(ellipse at 80% 75%,rgba(34,211,238,0.18),transparent 55%),radial-gradient(ellipse at 50% 100%,rgba(52,211,153,0.14),transparent 60%)",animation:"meshHue 14s ease-in-out infinite alternate",zIndex:0,pointerEvents:"none"}}/>
+      {/* Floating glow orbs */}
+      <div aria-hidden="true" style={{position:"absolute",top:"12%",left:"-4%",width:240,height:240,borderRadius:"50%",background:"radial-gradient(circle,rgba(99,102,241,0.45) 0%,transparent 70%)",filter:"blur(36px)",animation:"orbA 13s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
+      <div aria-hidden="true" style={{position:"absolute",bottom:"10%",right:"-6%",width:280,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(34,211,238,0.42) 0%,transparent 70%)",filter:"blur(40px)",animation:"orbB 16s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
+      <div aria-hidden="true" style={{position:"absolute",top:"55%",left:"60%",width:180,height:180,borderRadius:"50%",background:"radial-gradient(circle,rgba(74,222,128,0.30) 0%,transparent 70%)",filter:"blur(32px)",animation:"orbC 11s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
+      {/* Menu content */}
       <div style={{position:"relative",zIndex:1,width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",overflow:"auto",padding:"20px 0"}}>
       <Fade><TopBar/>
       <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
