@@ -972,21 +972,20 @@ export default function FootballGame(){
     <div style={{fontSize:48,marginBottom:4}}>👤</div>
     <h2 style={titSm}>{t("enterName")}</h2>
     <div style={{...panel,gap:12}}>
-      <input 
+      <input
         type="text"
-        defaultValue={playerName}
-        onBlur={e=>setPlayerName(e.target.value)}
-        onKeyDown={e=>{if(e.key==="Enter"){setPlayerName(e.target.value);if(e.target.value.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}}}}
-        placeholder={t("playerName")} 
+        value={playerName}
+        onChange={e=>setPlayerName(e.target.value)}
+        onFocus={e=>{try{e.target.select()}catch(err){}}}
+        onKeyDown={e=>{if(e.key==="Enter"&&playerName.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}}}
+        placeholder={t("playerName")}
         maxLength={15}
+        autoFocus
         autoComplete="off"
         style={{width:"100%",background:cc.inputBg,border:`1px solid ${cc.inputBorder}`,borderRadius:100,padding:"12px 18px",color:cc.txt,fontSize:"1.1em",outline:"none",textAlign:"center"}}/>
-      <button onClick={e=>{
-        const inp=e.target.parentElement.querySelector("input");
-        const val=inp?.value||playerName;
-        setPlayerName(val);
-        if(val.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}
-      }} style={{...gbtn()}}>{t("confirm")} →</button>
+      <button onClick={()=>{
+        if(playerName.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}
+      }} style={{...gbtn(),opacity:playerName.trim()?1:.5,cursor:playerName.trim()?"pointer":"not-allowed"}}>{t("confirm")} →</button>
     </div>
   </Fade></div>);
   }
