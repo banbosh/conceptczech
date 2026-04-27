@@ -359,6 +359,7 @@ function drawPowerup(x,pu,now){const pulse=1+Math.sin(now*.004)*.15;const r=16*p
 export default function FootballGame(){
   const cvRef=useRef(null),rafRef=useRef(null),tMap=useRef(new Map());
   const[scr,setScr]=useState("menu");
+  const[showIntro,setShowIntro]=useState(true);
   const[lang,setLang]=useState("en");
   const[theme,setTheme]=useState("dark");
   const[mode,setMode]=useState(null);
@@ -640,6 +641,13 @@ export default function FootballGame(){
     }else{sfx.stopMenuMusic()}
   },[scr,sndOn]);
 
+  // Auto-dismiss intro screen after 2.5 s
+  useEffect(()=>{
+    if(!showIntro)return;
+    const t=setTimeout(()=>setShowIntro(false),2500);
+    return()=>clearTimeout(t);
+  },[showIntro]);
+
   /* GAME LOOP */
   useEffect(()=>{if(scr!=="play"){if(rafRef.current)cancelAnimationFrame(rafRef.current);return}
     const cv=cvRef.current;if(!cv)return;cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
@@ -782,6 +790,13 @@ export default function FootballGame(){
   const Slot=({n})=>(<div style={{background:cc.inputBg,border:`1.5px solid ${cc.border}50`,borderRadius:10,padding:"6px 12px",textAlign:"center",minWidth:50}}><div style={{fontSize:16}}>👤</div><div style={{fontSize:"0.7em",color:cc.sub,fontWeight:700}}>{t("player")} {n}</div></div>);
 
   /* ═══════ SCREENS ═══════ */
+  // Intro screen — full-screen branding image, auto-dismisses after 2.5 s or on tap
+  if(showIntro){
+    return(<div onClick={()=>setShowIntro(false)} style={{position:"fixed",inset:0,background:"#0a0e17",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:1000,animation:"introIn .35s ease",overflow:"hidden"}}>
+      <style>{`@keyframes introIn{from{opacity:0}to{opacity:1}}`}</style>
+      <img src="/intro.png" alt="Banbosh Football" style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain",userSelect:"none",pointerEvents:"none"}}/>
+    </div>);
+  }
   if(scr==="menu"){
     const ICO={
       ai:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><line x1="9" y1="2" x2="9" y2="6"/><line x1="15" y1="2" x2="15" y2="6"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="15" cy="12" r="1.3" fill="currentColor"/><line x1="9" y1="15" x2="15" y2="15"/></svg>),
