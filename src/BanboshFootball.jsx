@@ -877,8 +877,8 @@ export default function FootballGame(){
         const leagueResume=readProgress("bf_league");
         const Badge=({children,color})=>(<span style={{background:color||"rgba(255,255,255,.95)",color:"#000",fontSize:"0.65em",padding:"2px 8px",borderRadius:"10px",fontWeight:800,marginLeft:6,letterSpacing:".5px",textShadow:"none"}}>{children}</span>);
         return(<>
-          {/* Big colored buttons — name screen pops up only if no name yet */}
-          <button className="mItem" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={bigBtn(PAL.ai)}>
+          {/* Big colored buttons — name screen ALWAYS shown when starting a fresh game */}
+          <button className="mItem" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr("playerName")}} style={bigBtn(PAL.ai)}>
             <span style={btnIcon}>{ICO.ai}</span><span style={btnLabel}>{t("ai")}</span>
           </button>
           <button className="mItem" onClick={()=>{
@@ -886,7 +886,7 @@ export default function FootballGame(){
             const sv=readProgress("bf_tourney");
             const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
             if(sv&&j&&playerName.trim()){setJ1(j);setTRound(sv.tRound);setTResult(null);setScr("tourneyNext")}
-            else setScr(playerName.trim()?"jersey1":"playerName");
+            else setScr("playerName");
           }} style={bigBtn(PAL.tourney)}>
             <span style={btnIcon}>{ICO.tourney}</span><span style={btnLabel}>{t("tourney")}{tourneyResume&&<Badge color="#fff">{(tourneyResume.tRound||0)+1}/3</Badge>}</span>
           </button>
@@ -895,7 +895,7 @@ export default function FootballGame(){
             const sv=readProgress("bf_league");
             const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
             if(sv&&j&&playerName.trim()){setJ1(j);setLeagueDiv(sv.leagueDiv);setLeagueTable(sv.leagueTable);setLeagueMatchday(sv.leagueMatchday);setScr("leagueTable")}
-            else{setLeagueDiv(3);setScr(playerName.trim()?"jersey1":"playerName")}
+            else{setLeagueDiv(3);setScr("playerName")}
           }} style={bigBtn(PAL.league)}>
             <span style={btnIcon}>{ICO.league}</span><span style={btnLabel}>{t("league")}{leagueResume&&<Badge color="#fff">{t(`league${leagueResume.leagueDiv}`).split(" ")[0]}</Badge>}</span>
           </button>
