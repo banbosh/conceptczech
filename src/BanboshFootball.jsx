@@ -882,16 +882,16 @@ export default function FootballGame(){
         const leagueResume=readProgress("bf_league");
         const Badge=({children,color})=>(<span style={{background:color||"rgba(255,255,255,.95)",color:"#000",fontSize:"0.65em",padding:"2px 8px",borderRadius:"10px",fontWeight:800,marginLeft:6,letterSpacing:".5px",textShadow:"none"}}>{children}</span>);
         return(<>
-          {/* Name chip */}
+          {/* Name chip — entire chip is one big tap target */}
           {(()=>{
             const has=playerName.trim();
-            return(<div onClick={!has?()=>{sfx.click();setMode(null);setScr("playerName")}:undefined} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"7px 14px",background:has?(isDark?"rgba(255,255,255,.08)":"rgba(0,0,0,.05)"):`${cc.accentSolid}28`,border:`1.4px solid ${has?cc.cardBorder:cc.accentSolid}`,borderRadius:"100px",fontSize:"0.85em",color:cc.txt,cursor:has?"default":"pointer",backdropFilter:"blur(8px)"}}>
-              <span style={{fontSize:"1.1em"}}>👤</span>
-              <span style={{fontWeight:700,opacity:has?1:.75,fontStyle:has?"normal":"italic"}}>{has?playerName:t("enterName")}</span>
-              <button onClick={(e)=>{e.stopPropagation();sfx.click();setMode(null);setScr("playerName")}} title="Edit" style={{background:"transparent",border:"none",color:cc.accentSolid,cursor:"pointer",padding:0,marginLeft:"auto",display:"inline-flex",alignItems:"center"}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-              </button>
-            </div>);
+            return(<button onClick={()=>{sfx.click();setMode(null);setScr("playerName")}} style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,padding:"10px 18px",background:has?(isDark?"rgba(255,255,255,.10)":"rgba(0,0,0,.06)"):`${cc.accentSolid}30`,border:`1.5px solid ${has?cc.cardBorder:cc.accentSolid}`,borderRadius:"100px",fontSize:"0.9em",color:cc.txt,cursor:"pointer",WebkitTapHighlightColor:"transparent",backdropFilter:"blur(8px)",fontFamily:"inherit",minHeight:42}}>
+              <span style={{fontSize:"1.2em"}}>👤</span>
+              <span style={{fontWeight:700,opacity:has?1:.85,fontStyle:has?"normal":"italic"}}>{has?playerName:t("enterName")}</span>
+              <span style={{marginLeft:"auto",color:cc.accentSolid,display:"inline-flex",alignItems:"center"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              </span>
+            </button>);
           })()}
           {/* Big colored buttons */}
           <button className="mItem" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={bigBtn(PAL.ai)}>
@@ -987,21 +987,25 @@ export default function FootballGame(){
     return(<div style={{width:"100vw",height:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s"}}><style>{css}</style><Fade><TopBar/><BackBtn to="menu"/>
     <div style={{fontSize:48,marginBottom:4}}>👤</div>
     <h2 style={titSm}>{t("enterName")}</h2>
-    <div style={{...panel,gap:12}}>
+    <div style={{...panel,gap:14}}>
       <input
         type="text"
+        inputMode="text"
         value={playerName}
         onChange={e=>setPlayerName(e.target.value)}
-        onFocus={e=>{try{e.target.select()}catch(err){}}}
+        onFocus={e=>{try{setTimeout(()=>e.target.select(),0)}catch(err){}}}
         onKeyDown={e=>{if(e.key==="Enter"&&playerName.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}}}
         placeholder={t("playerName")}
         maxLength={15}
-        autoFocus
         autoComplete="off"
-        style={{width:"100%",background:cc.inputBg,border:`1px solid ${cc.inputBorder}`,borderRadius:100,padding:"12px 18px",color:cc.txt,fontSize:"1.1em",outline:"none",textAlign:"center"}}/>
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        style={{width:"100%",background:cc.inputBg,border:`2px solid ${cc.accentSolid}`,borderRadius:100,padding:"16px 22px",color:cc.txt,fontSize:"1.2em",outline:"none",textAlign:"center",WebkitUserSelect:"text",userSelect:"text",fontFamily:"inherit",fontWeight:600}}/>
+      {playerName.trim()&&<button onClick={()=>{setPlayerName("");try{localStorage.removeItem("bf_playerName")}catch(e){}}} style={{background:"transparent",border:"none",color:cc.sub,fontSize:"0.8em",cursor:"pointer",textDecoration:"underline",padding:4}}>clear</button>}
       <button onClick={()=>{
         if(playerName.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}
-      }} style={{...gbtn(),opacity:playerName.trim()?1:.5,cursor:playerName.trim()?"pointer":"not-allowed"}}>{t("confirm")} →</button>
+      }} disabled={!playerName.trim()} style={{...gbtn(),opacity:playerName.trim()?1:.5,cursor:playerName.trim()?"pointer":"not-allowed"}}>{t("confirm")} →</button>
     </div>
   </Fade></div>);
   }
