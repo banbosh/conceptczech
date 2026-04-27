@@ -755,7 +755,12 @@ export default function FootballGame(){
     @keyframes bounce{0%{transform:scale(0)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
     @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
     @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.3}}
-    @keyframes puPop{0%{transform:translate(-50%,-60%) scale(0);opacity:0}30%{transform:translate(-50%,-60%) scale(1.3);opacity:1}100%{transform:translate(-50%,-60%) scale(1);opacity:0}}`;
+    @keyframes puPop{0%{transform:translate(-50%,-60%) scale(0);opacity:0}30%{transform:translate(-50%,-60%) scale(1.3);opacity:1}100%{transform:translate(-50%,-60%) scale(1);opacity:0}}
+    .mItem{transition:transform .15s ease,box-shadow .2s ease,filter .2s ease}
+    .mItem:active{transform:scale(.97)}
+    .mItem:hover{filter:brightness(1.05)}
+    .mGhost{transition:transform .15s ease,background .2s ease,border-color .2s ease}
+    .mGhost:active{transform:scale(.95)}`;
   const ctn={width:"100vw",height:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s"};
   const panel={background:cc.card,borderRadius:"29px",boxShadow:theme==="dark"?"0 8px 40px rgba(0,0,0,0.5)":"0 8px 30px rgba(60,40,20,0.06)",width:"90%",maxWidth:"420px",padding:"25px 20px",display:"flex",flexDirection:"column",alignItems:"center",border:`1.8px solid ${cc.cardBorder}`,transition:"background 0.33s",backdropFilter:"blur(16px)"};
   const ubtn=(ex={})=>({fontFamily:"inherit",borderRadius:"100px",outline:"none",border:theme==="light"?`1.6px solid ${cc.cardBorder}`:"1.6px solid transparent",background:cc.btn,color:cc.btnTxt,padding:"9px 18px",cursor:"pointer",fontWeight:600,transition:"all 0.2s",WebkitTapHighlightColor:"transparent",boxShadow:theme==="light"?"0 1px 4px rgba(0,0,0,0.06)":"none",...ex});
@@ -777,21 +782,55 @@ export default function FootballGame(){
   const Slot=({n})=>(<div style={{background:cc.inputBg,border:`1.5px solid ${cc.border}50`,borderRadius:10,padding:"6px 12px",textAlign:"center",minWidth:50}}><div style={{fontSize:16}}>👤</div><div style={{fontSize:"0.7em",color:cc.sub,fontWeight:700}}>{t("player")} {n}</div></div>);
 
   /* ═══════ SCREENS ═══════ */
-  if(scr==="menu")return(<div style={ctn}><style>{css}</style><Fade><TopBar/>
-    
-    <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
-    <p style={desc}>{t("sub")}</p>
-    <div style={panel}>
-      <button onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr("playerName")}} style={ubtn({width:"100%",maxWidth:280,marginBottom:10,fontSize:"1em"})}>{t("ai")}</button>
-      <button onClick={()=>{sfx.click();setMode("tourney");setSel(null);setScr("playerName")}} style={ubtn({width:"100%",maxWidth:280,marginBottom:10,fontSize:"1em"})}>{t("tourney")}</button>
-      <button onClick={()=>{sfx.click();setMode("league");setSel(null);setLeagueDiv(3);setScr("playerName")}} style={ubtn({width:"100%",maxWidth:280,marginBottom:10,fontSize:"1em"})}>{t("league")}</button>
-      <button onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={ubtn({width:"100%",maxWidth:280,fontSize:"1em"})}>{t("online")}</button>
-      <div style={{marginTop:16,display:"flex",gap:16,justifyContent:"center"}}>
-        <button onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={{background:"#22d3ee",border:"none",borderRadius:12,color:"#000",fontSize:"0.9em",cursor:"pointer",padding:"10px 16px",fontWeight:700}}>{t("tutorial")}</button>
-        <button onClick={()=>{sfx.click();setScr("legal")}} style={{background:"#22d3ee",border:"none",borderRadius:12,color:"#000",fontSize:"0.9em",cursor:"pointer",padding:"10px 16px",fontWeight:700}}>{t("legal")}</button>
-      </div>
-    </div><Footer/>
-  </Fade></div>);
+  if(scr==="menu"){
+    const ICO={
+      ai:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><line x1="9" y1="2" x2="9" y2="6"/><line x1="15" y1="2" x2="15" y2="6"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="15" cy="12" r="1.3" fill="currentColor"/><line x1="9" y1="15" x2="15" y2="15"/></svg>),
+      tourney:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 4H4v3a3 3 0 0 0 3 3"/><path d="M17 4h3v3a3 3 0 0 1-3 3"/><path d="M9 14v3h6v-3"/><path d="M8 20h8"/></svg>),
+      league:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>),
+      online:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a13 13 0 0 1 0 18M12 3a13 13 0 0 0 0 18"/></svg>),
+      tut:(<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2V5z"/><line x1="8" y1="7" x2="14" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>),
+      legal:(<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><polyline points="14 3 14 8 19 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>),
+    };
+    const mItem=(primary)=>({
+      width:"100%",maxWidth:280,marginBottom:10,
+      fontFamily:"inherit",
+      border:primary?"none":`1.5px solid ${cc.cardBorder}`,
+      background:primary?cc.accent:cc.btn,
+      color:primary?(theme==="dark"?"#0a0e17":"#3D2E22"):cc.btnTxt,
+      borderRadius:"100px",
+      padding:"13px 20px",
+      display:"flex",alignItems:"center",justifyContent:"center",gap:12,
+      fontSize:"1em",fontWeight:primary?700:600,letterSpacing:".3px",
+      cursor:"pointer",WebkitTapHighlightColor:"transparent",
+      boxShadow:primary
+        ?(theme==="dark"?"0 4px 20px rgba(34,211,238,0.28)":"0 4px 14px rgba(180,140,100,0.20)")
+        :(theme==="light"?"0 1px 4px rgba(0,0,0,0.06)":"none"),
+    });
+    const mGhost={
+      fontFamily:"inherit",
+      background:"transparent",
+      border:`1.4px solid ${cc.cardBorder}`,
+      color:cc.txt,opacity:.85,
+      borderRadius:"100px",padding:"8px 16px",
+      display:"inline-flex",alignItems:"center",gap:8,
+      fontSize:"0.85em",fontWeight:600,
+      cursor:"pointer",WebkitTapHighlightColor:"transparent",
+    };
+    return(<div style={ctn}><style>{css}</style><Fade><TopBar/>
+      <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
+      <p style={desc}>{t("sub")}</p>
+      <div style={panel}>
+        <button className="mItem" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr("playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
+        <button className="mItem" onClick={()=>{sfx.click();setMode("tourney");setSel(null);setScr("playerName")}} style={mItem(false)}>{ICO.tourney}<span>{t("tourney")}</span></button>
+        <button className="mItem" onClick={()=>{sfx.click();setMode("league");setSel(null);setLeagueDiv(3);setScr("playerName")}} style={mItem(false)}>{ICO.league}<span>{t("league")}</span></button>
+        <button className="mItem" onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={mItem(false)}>{ICO.online}<span>{t("online")}</span></button>
+        <div style={{marginTop:14,display:"flex",gap:10,justifyContent:"center"}}>
+          <button className="mGhost" onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={mGhost}>{ICO.tut}<span>{t("tutorial")}</span></button>
+          <button className="mGhost" onClick={()=>{sfx.click();setScr("legal")}} style={mGhost}>{ICO.legal}<span>{t("legal")}</span></button>
+        </div>
+      </div><Footer/>
+    </Fade></div>);
+  }
 
   // Tutorial screen
   if(scr==="tutorial"){
