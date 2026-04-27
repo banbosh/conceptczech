@@ -49,7 +49,7 @@ const LEAGUE_AI_NAMES=[
 
 /* ═══════ FIELDS (hřiště) ═══════ */
 const FIELDS=[
-  {id:"grass",name:{en:"Classic Grass",cs:"Klasická tráva"},color1:"#3ebd55",color2:"#33ad48",friction:0.985,locked:false},
+  {id:"grass",name:{en:"Classic Grass",cs:"Klasická tráva"},color1:"#2eaf44",color2:"#26953c",friction:0.985,locked:false},
   {id:"turf",name:{en:"Artificial Turf",cs:"Umělka"},color1:"#1e6b3e",color2:"#1a5c36",friction:0.99,locked:false},
   {id:"beach",name:{en:"Beach",cs:"Pláž"},color1:"#D4A574",color2:"#C4956A",friction:0.97,locked:true,unlockWins:8},
   {id:"ice",name:{en:"Ice Rink",cs:"Led"},color1:"#B0E0E6",color2:"#87CEEB",friction:0.998,locked:true,unlockWins:15},
@@ -255,7 +255,7 @@ const sfx=new SFX();const vib=ms=>{try{navigator.vibrate?.(ms)}catch(e){}};
 function PlayerPreview({jersey,size=80}){const ref=useRef(null);useEffect(()=>{const cv=ref.current;if(!cv)return;cv.width=size*2;cv.height=size*2;const x=cv.getContext("2d"),s=size/52;x.clearRect(0,0,size*2,size*2);x.save();x.scale(s,s);const p=52,q=52;x.fillStyle="rgba(0,0,0,0.12)";x.beginPath();x.ellipse(p+1,q+28,14,4,0,0,Math.PI*2);x.fill();x.fillStyle="#1a1a1a";[-7,7].forEach(d=>{x.beginPath();x.arc(p+d,q+24,4,0,Math.PI*2);x.fill()});x.strokeStyle="#f0c8a0";x.lineWidth=5;x.lineCap="round";[-7,7].forEach(d=>{x.beginPath();x.moveTo(p+d*.7,q+14);x.lineTo(p+d,q+21);x.stroke()});x.fillStyle=jersey.primary;x.beginPath();x.ellipse(p,q+4,16,14,0,0,Math.PI*2);x.fill();x.strokeStyle=jersey.dark;x.lineWidth=1.2;x.stroke();x.fillStyle=jersey.shorts;x.beginPath();x.ellipse(p,q+14,12,5,0,0,Math.PI);x.fill();x.strokeStyle="#f0c8a0";x.lineWidth=4.5;x.lineCap="round";[[-15,2,-22,10],[15,2,22,10]].forEach(([a,b,cc,d])=>{x.beginPath();x.moveTo(p+a,q+b);x.lineTo(p+cc,q+d);x.stroke()});x.fillStyle=jersey.secondary;x.font="bold 11px 'Inter',sans-serif";x.textAlign="center";x.textBaseline="middle";x.fillText("10",p,q+3);x.fillStyle="#f5d0a9";x.beginPath();x.arc(p,q-14,10,0,Math.PI*2);x.fill();x.fillStyle=jersey.hair;x.beginPath();x.arc(p,q-17,10,Math.PI+.4,-.4);x.fill();x.fillStyle="#222";[-3.5,3.5].forEach(d=>{x.beginPath();x.arc(p+d,q-14,1.6,0,Math.PI*2);x.fill()});x.strokeStyle="#c47a5a";x.lineWidth=1.2;x.beginPath();x.arc(p,q-10,3.5,.15*Math.PI,.85*Math.PI);x.stroke();x.restore()},[jersey,size]);return <canvas ref={ref} style={{width:size,height:size}}/>}
 
 /* ═══════ DRAW HELPERS ═══════ */
-function drawField(x){for(let i=0;i<H;i+=40){x.fillStyle=i%80===0?"#3ebd55":"#33ad48";x.fillRect(0,i,W,40)}x.strokeStyle="rgba(255,255,255,0.55)";x.lineWidth=2;x.strokeRect(12,12,W-24,H-24);x.beginPath();x.moveTo(12,H/2);x.lineTo(W-12,H/2);x.stroke();x.beginPath();x.arc(W/2,H/2,52,0,Math.PI*2);x.stroke();x.fillStyle="rgba(255,255,255,0.55)";x.beginPath();x.arc(W/2,H/2,4,0,Math.PI*2);x.fill();const pw=GW+60,ph=70,pl=(W-pw)/2;x.strokeRect(pl,12,pw,ph);x.strokeRect(pl,H-12-ph,pw,ph);const gw2=GW+20,gh=30,gl=(W-gw2)/2;x.strokeRect(gl,12,gw2,gh);x.strokeRect(gl,H-12-gh,gw2,gh);x.fillStyle="rgba(255,255,255,0.2)";x.fillRect(GL,0,GW,12);x.fillRect(GL,H-12,GW,12);x.fillStyle="#fff";x.fillRect(GL-3,0,5,14);x.fillRect(GR-2,0,5,14);x.fillRect(GL-3,H-14,5,14);x.fillRect(GR-2,H-14,5,14);x.strokeStyle="rgba(255,255,255,0.12)";x.lineWidth=1;for(let i=GL+10;i<GR;i+=12){x.beginPath();x.moveTo(i,0);x.lineTo(i,12);x.stroke();x.beginPath();x.moveTo(i,H-12);x.lineTo(i,H);x.stroke()}}
+function drawField(x){for(let i=0;i<H;i+=40){x.fillStyle=i%80===0?"#2eaf44":"#26953c";x.fillRect(0,i,W,40)}x.strokeStyle="rgba(255,255,255,0.55)";x.lineWidth=2;x.strokeRect(12,12,W-24,H-24);x.beginPath();x.moveTo(12,H/2);x.lineTo(W-12,H/2);x.stroke();x.beginPath();x.arc(W/2,H/2,52,0,Math.PI*2);x.stroke();x.fillStyle="rgba(255,255,255,0.55)";x.beginPath();x.arc(W/2,H/2,4,0,Math.PI*2);x.fill();const pw=GW+60,ph=70,pl=(W-pw)/2;x.strokeRect(pl,12,pw,ph);x.strokeRect(pl,H-12-ph,pw,ph);const gw2=GW+20,gh=30,gl=(W-gw2)/2;x.strokeRect(gl,12,gw2,gh);x.strokeRect(gl,H-12-gh,gw2,gh);x.fillStyle="rgba(255,255,255,0.2)";x.fillRect(GL,0,GW,12);x.fillRect(GL,H-12,GW,12);x.fillStyle="#fff";x.fillRect(GL-3,0,5,14);x.fillRect(GR-2,0,5,14);x.fillRect(GL-3,H-14,5,14);x.fillRect(GR-2,H-14,5,14);x.strokeStyle="rgba(255,255,255,0.12)";x.lineWidth=1;for(let i=GL+10;i<GR;i+=12){x.beginPath();x.moveTo(i,0);x.lineTo(i,12);x.stroke();x.beginPath();x.moveTo(i,H-12);x.lineTo(i,H);x.stroke()}}
 function drawP(x,px,py,j,n,sc,anim){
   const s=sc||1;
   const vx=anim?.vx||0,ph=anim?.phase||0;
@@ -870,28 +870,40 @@ export default function FootballGame(){
       <Fade><TopBar/>
       <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
       <p style={desc}>{t("sub")}</p>
-      <div style={panel}>
-        <button className="mItem mItemPrimary" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
-        <button className="mItem" onClick={()=>{
-          sfx.click();setMode("tourney");setSel(null);
-          const sv=readProgress("bf_tourney");
-          const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
-          if(sv&&j&&playerName.trim()){setJ1(j);setTRound(sv.tRound);setTResult(null);setScr("tourneyNext")}
-          else setScr(playerName.trim()?"jersey1":"playerName");
-        }} style={mItem(false)}>{ICO.tourney}<span>{t("tourney")}</span></button>
-        <button className="mItem" onClick={()=>{
-          sfx.click();setMode("league");setSel(null);
-          const sv=readProgress("bf_league");
-          const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
-          if(sv&&j&&playerName.trim()){setJ1(j);setLeagueDiv(sv.leagueDiv);setLeagueTable(sv.leagueTable);setLeagueMatchday(sv.leagueMatchday);setScr("leagueTable")}
-          else{setLeagueDiv(3);setScr(playerName.trim()?"jersey1":"playerName")}
-        }} style={mItem(false)}>{ICO.league}<span>{t("league")}</span></button>
+      {(() => {
+        const tourneyResume=readProgress("bf_tourney");
+        const leagueResume=readProgress("bf_league");
+        const Badge=({children})=>(<span style={{background:cc.accentSolid,color:"#000",fontSize:"0.65em",padding:"2px 7px",borderRadius:"10px",fontWeight:800,marginLeft:6,letterSpacing:".5px"}}>{children}</span>);
+        return(<div style={panel}>
+          {playerName.trim()&&(<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,padding:"6px 12px",background:`${cc.accentSolid}14`,border:`1px solid ${cc.cardBorder}`,borderRadius:"100px",fontSize:"0.85em",color:cc.txt}}>
+            <span style={{fontSize:"1.1em"}}>👤</span><span style={{fontWeight:600}}>{playerName}</span>
+            <button onClick={()=>{sfx.click();setMode(null);setScr("playerName")}} title="Edit" style={{background:"transparent",border:"none",color:cc.accentSolid,cursor:"pointer",padding:0,marginLeft:4,display:"inline-flex",alignItems:"center"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            </button>
+          </div>)}
+          <button className="mItem mItemPrimary" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
+          <button className="mItem" onClick={()=>{
+            sfx.click();setMode("tourney");setSel(null);
+            const sv=readProgress("bf_tourney");
+            const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
+            if(sv&&j&&playerName.trim()){setJ1(j);setTRound(sv.tRound);setTResult(null);setScr("tourneyNext")}
+            else setScr(playerName.trim()?"jersey1":"playerName");
+          }} style={mItem(false)}>{ICO.tourney}<span>{t("tourney")}</span>{tourneyResume&&<Badge>{(tourneyResume.tRound||0)+1}/3</Badge>}</button>
+          <button className="mItem" onClick={()=>{
+            sfx.click();setMode("league");setSel(null);
+            const sv=readProgress("bf_league");
+            const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
+            if(sv&&j&&playerName.trim()){setJ1(j);setLeagueDiv(sv.leagueDiv);setLeagueTable(sv.leagueTable);setLeagueMatchday(sv.leagueMatchday);setScr("leagueTable")}
+            else{setLeagueDiv(3);setScr(playerName.trim()?"jersey1":"playerName")}
+          }} style={mItem(false)}>{ICO.league}<span>{t("league")}</span>{leagueResume&&<Badge>{t(`league${leagueResume.leagueDiv}`).split(" ")[0]}</Badge>}</button>
         <button className="mItem" onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={mItem(false)}>{ICO.online}<span>{t("online")}</span></button>
         <div style={{marginTop:14,display:"flex",gap:10,justifyContent:"center"}}>
           <button className="mGhost" onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={mGhost}>{ICO.tut}<span>{t("tutorial")}</span></button>
           <button className="mGhost" onClick={()=>{sfx.click();setScr("legal")}} style={mGhost}>{ICO.legal}<span>{t("legal")}</span></button>
         </div>
-      </div><Footer/>
+      </div>);
+      })()}
+      <Footer/>
     </Fade>
     </div>
     </div>);
@@ -954,7 +966,7 @@ export default function FootballGame(){
         type="text"
         defaultValue={playerName}
         onBlur={e=>setPlayerName(e.target.value)}
-        onKeyDown={e=>{if(e.key==="Enter"){setPlayerName(e.target.value);if(e.target.value.trim()){sfx.click();setSel(null);setScr("jersey1")}}}}
+        onKeyDown={e=>{if(e.key==="Enter"){setPlayerName(e.target.value);if(e.target.value.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}}}}
         placeholder={t("playerName")} 
         maxLength={15}
         autoComplete="off"
@@ -963,7 +975,7 @@ export default function FootballGame(){
         const inp=e.target.parentElement.querySelector("input");
         const val=inp?.value||playerName;
         setPlayerName(val);
-        if(val.trim()){sfx.click();setSel(null);setScr("jersey1")}
+        if(val.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}
       }} style={{...gbtn()}}>{t("confirm")} →</button>
     </div>
   </Fade></div>);
