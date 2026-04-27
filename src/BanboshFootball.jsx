@@ -769,11 +769,9 @@ export default function FootballGame(){
     .mItem:hover{filter:brightness(1.05)}
     .mGhost{transition:transform .15s ease,background .2s ease,border-color .2s ease}
     .mGhost:active{transform:scale(.95)}
-    @keyframes ballBounce{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-14px) rotate(180deg)}}
     @keyframes primaryPulse{0%,100%{box-shadow:0 4px 20px rgba(34,211,238,.28)}50%{box-shadow:0 6px 32px rgba(34,211,238,.55)}}
-    @keyframes spotlight{0%,100%{transform:translate(-50%,-50%) rotate(0deg)}50%{transform:translate(-50%,-50%) rotate(180deg)}}
-    .mItemPrimary{animation:primaryPulse 2.6s ease-in-out infinite}
-    .menuBall{animation:ballBounce 2.4s ease-in-out infinite}`;
+    @keyframes bgPan{0%,100%{transform:scale(1.08) translate(0,0)}50%{transform:scale(1.10) translate(-1.5%,-1.5%)}}
+    .mItemPrimary{animation:primaryPulse 2.6s ease-in-out infinite}`;
   const ctn={width:"100vw",height:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s"};
   const panel={background:cc.card,borderRadius:"29px",boxShadow:theme==="dark"?"0 8px 40px rgba(0,0,0,0.5)":"0 8px 30px rgba(60,40,20,0.06)",width:"90%",maxWidth:"420px",padding:"25px 20px",display:"flex",flexDirection:"column",alignItems:"center",border:`1.8px solid ${cc.cardBorder}`,transition:"background 0.33s",backdropFilter:"blur(16px)"};
   const ubtn=(ex={})=>({fontFamily:"inherit",borderRadius:"100px",outline:"none",border:theme==="light"?`1.6px solid ${cc.cardBorder}`:"1.6px solid transparent",background:cc.btn,color:cc.btnTxt,padding:"9px 18px",cursor:"pointer",fontWeight:600,transition:"all 0.2s",WebkitTapHighlightColor:"transparent",boxShadow:theme==="light"?"0 1px 4px rgba(0,0,0,0.06)":"none",...ex});
@@ -836,19 +834,12 @@ export default function FootballGame(){
       fontSize:"0.85em",fontWeight:600,
       cursor:"pointer",WebkitTapHighlightColor:"transparent",
     };
-    return(<div style={ctn}><style>{css}</style><Fade><TopBar/>
-      <div className="menuBall" style={{display:"flex",justifyContent:"center",marginBottom:-2}}>
-        <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
-          <defs>
-            <radialGradient id="ballG" cx="36%" cy="32%" r="68%">
-              <stop offset="0%" stopColor="#ffd06b"/>
-              <stop offset="50%" stopColor="#ee6a17"/>
-              <stop offset="100%" stopColor="#a83b06"/>
-            </radialGradient>
-          </defs>
-          <circle cx="28" cy="28" r="25" fill="url(#ballG)" stroke="#5a1d04" strokeWidth="1.2"/>
-        </svg>
-      </div>
+    return(<div style={{...ctn,position:"relative",overflow:"hidden"}}>
+      <style>{css}</style>
+      <div aria-hidden="true" style={{position:"absolute",inset:0,backgroundImage:"url(/intro.png)",backgroundSize:"cover",backgroundPosition:"center 30%",filter:"blur(3px) saturate(1.05)",transform:"scale(1.08)",opacity:.55,zIndex:0,pointerEvents:"none",animation:"bgPan 24s ease-in-out infinite"}}/>
+      <div aria-hidden="true" style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(10,14,23,.55) 0%,rgba(10,14,23,.4) 35%,rgba(10,14,23,.7) 100%)",zIndex:0,pointerEvents:"none"}}/>
+      <div style={{position:"relative",zIndex:1,width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",overflow:"auto",padding:"20px 0"}}>
+      <Fade><TopBar/>
       <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
       <p style={desc}>{t("sub")}</p>
       <div style={panel}>
@@ -861,7 +852,9 @@ export default function FootballGame(){
           <button className="mGhost" onClick={()=>{sfx.click();setScr("legal")}} style={mGhost}>{ICO.legal}<span>{t("legal")}</span></button>
         </div>
       </div><Footer/>
-    </Fade></div>);
+    </Fade>
+    </div>
+    </div>);
   }
 
   // Tutorial screen
