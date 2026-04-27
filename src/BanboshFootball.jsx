@@ -830,29 +830,31 @@ export default function FootballGame(){
     </div>);
   }
   if(scr==="menu"){
-    const ICO={
-      ai:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><line x1="9" y1="2" x2="9" y2="6"/><line x1="15" y1="2" x2="15" y2="6"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="15" cy="12" r="1.3" fill="currentColor"/><line x1="9" y1="15" x2="15" y2="15"/></svg>),
-      tourney:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 4H4v3a3 3 0 0 0 3 3"/><path d="M17 4h3v3a3 3 0 0 1-3 3"/><path d="M9 14v3h6v-3"/><path d="M8 20h8"/></svg>),
-      league:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>),
-      online:(<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a13 13 0 0 1 0 18M12 3a13 13 0 0 0 0 18"/></svg>),
-      tut:(<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2V5z"/><line x1="8" y1="7" x2="14" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>),
-      legal:(<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><polyline points="14 3 14 8 19 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>),
+    // Big colored emoji icons (works in both themes)
+    const ICO={ai:"🤖",tourney:"🏆",league:"🏟️",online:"🌐",tut:"📖",legal:"📄"};
+    // Per-button color palettes — gradient + glow for each main action
+    const PAL={
+      ai:{grad:"linear-gradient(135deg,#1d4ed8 0%,#3b82f6 50%,#60a5fa 100%)",glow:"rgba(59,130,246,.55)",border:"rgba(96,165,250,.6)"},
+      tourney:{grad:"linear-gradient(135deg,#c2410c 0%,#f59e0b 50%,#fbbf24 100%)",glow:"rgba(245,158,11,.55)",border:"rgba(251,191,36,.6)"},
+      league:{grad:"linear-gradient(135deg,#15803d 0%,#22c55e 50%,#4ade80 100%)",glow:"rgba(34,197,94,.55)",border:"rgba(74,222,128,.6)"},
+      online:{grad:"linear-gradient(135deg,#7c3aed 0%,#a855f7 50%,#c084fc 100%)",glow:"rgba(168,85,247,.55)",border:"rgba(192,132,252,.6)"},
     };
-    const mItem=(primary)=>({
-      width:"100%",maxWidth:280,marginBottom:10,
+    const bigBtn=(pal)=>({
+      width:"100%",maxWidth:320,marginBottom:12,
       fontFamily:"inherit",
-      border:primary?"none":`1.5px solid ${cc.cardBorder}`,
-      background:primary?cc.accent:cc.btn,
-      color:primary?(theme==="dark"?"#0a0e17":"#3D2E22"):cc.btnTxt,
+      border:`1.5px solid ${pal.border}`,
+      background:pal.grad,
+      color:"#fff",
       borderRadius:"100px",
-      padding:"13px 20px",
-      display:"flex",alignItems:"center",justifyContent:"center",gap:12,
-      fontSize:"1em",fontWeight:primary?700:600,letterSpacing:".3px",
+      padding:"14px 22px",
+      display:"flex",alignItems:"center",gap:14,
+      fontSize:"1.05em",fontWeight:800,letterSpacing:".5px",
       cursor:"pointer",WebkitTapHighlightColor:"transparent",
-      boxShadow:primary
-        ?(theme==="dark"?"0 4px 20px rgba(34,211,238,0.28)":"0 4px 14px rgba(180,140,100,0.20)")
-        :(theme==="light"?"0 1px 4px rgba(0,0,0,0.06)":"none"),
+      boxShadow:`0 6px 24px ${pal.glow},inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.18)`,
+      textShadow:"0 1px 2px rgba(0,0,0,.35)",
     });
+    const btnIcon={fontSize:"1.5em",lineHeight:1,filter:"drop-shadow(0 2px 4px rgba(0,0,0,.4))",flexShrink:0,width:32,textAlign:"center"};
+    const btnLabel={flex:1,textAlign:"center"};
     const mGhost={
       fontFamily:"inherit",
       background:"transparent",
@@ -863,55 +865,83 @@ export default function FootballGame(){
       fontSize:"0.85em",fontWeight:600,
       cursor:"pointer",WebkitTapHighlightColor:"transparent",
     };
+    // 3D extruded title — works in both themes via theme-aware shadow
+    const isDark=theme==="dark";
+    const title3D={
+      fontSize:"clamp(2.2em,9vw,3em)",fontWeight:900,letterSpacing:"3px",lineHeight:1,
+      margin:"4px 0 6px",textAlign:"center",
+      background:"linear-gradient(180deg,#fff 0%,#f0f4f8 45%,#3b82f6 55%,#1d4ed8 100%)",
+      WebkitBackgroundClip:"text",backgroundClip:"text",WebkitTextFillColor:"transparent",color:"transparent",
+      textShadow:isDark?"0 2px 0 rgba(0,0,0,.4),0 4px 0 rgba(0,0,0,.3),0 6px 14px rgba(34,211,238,.35)":"0 2px 0 rgba(0,0,0,.15),0 4px 12px rgba(60,40,20,.20)",
+      filter:"drop-shadow(0 4px 8px rgba(0,0,0,.4))",
+    };
     return(<div style={{...ctn,position:"relative",overflow:"hidden"}}>
       <style>{css}</style>
-      {/* Subtle radial mesh gradient that animates color */}
-      <div aria-hidden="true" style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 20% 25%,rgba(99,102,241,0.22),transparent 55%),radial-gradient(ellipse at 80% 75%,rgba(34,211,238,0.18),transparent 55%),radial-gradient(ellipse at 50% 100%,rgba(52,211,153,0.14),transparent 60%)",animation:"meshHue 14s ease-in-out infinite alternate",zIndex:0,pointerEvents:"none"}}/>
-      {/* Floating glow orbs */}
-      <div aria-hidden="true" style={{position:"absolute",top:"12%",left:"-4%",width:240,height:240,borderRadius:"50%",background:"radial-gradient(circle,rgba(99,102,241,0.45) 0%,transparent 70%)",filter:"blur(36px)",animation:"orbA 13s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
-      <div aria-hidden="true" style={{position:"absolute",bottom:"10%",right:"-6%",width:280,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(34,211,238,0.42) 0%,transparent 70%)",filter:"blur(40px)",animation:"orbB 16s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
-      <div aria-hidden="true" style={{position:"absolute",top:"55%",left:"60%",width:180,height:180,borderRadius:"50%",background:"radial-gradient(circle,rgba(74,222,128,0.30) 0%,transparent 70%)",filter:"blur(32px)",animation:"orbC 11s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
+      {/* Stadium-feel background gradient */}
+      <div aria-hidden="true" style={{position:"absolute",inset:0,background:isDark?"radial-gradient(ellipse at 50% 65%,rgba(34,197,94,.30) 0%,rgba(20,83,45,.25) 30%,transparent 65%),linear-gradient(180deg,#040711 0%,#0a0e17 60%,#0f1d14 100%)":"radial-gradient(ellipse at 50% 65%,rgba(34,197,94,.18) 0%,transparent 50%),linear-gradient(180deg,#FDF6F0 0%,#FDF6F0 50%,#e6dfd5 100%)",zIndex:0,pointerEvents:"none"}}/>
+      {/* Stadium light beams (top corners) */}
+      <div aria-hidden="true" style={{position:"absolute",top:"-30%",left:"-15%",width:340,height:340,borderRadius:"50%",background:"radial-gradient(circle,rgba(96,165,250,.50) 0%,transparent 70%)",filter:"blur(46px)",animation:"orbA 13s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
+      <div aria-hidden="true" style={{position:"absolute",top:"-30%",right:"-15%",width:340,height:340,borderRadius:"50%",background:"radial-gradient(circle,rgba(96,165,250,.50) 0%,transparent 70%)",filter:"blur(46px)",animation:"orbB 16s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
+      {/* Subtle green ambient at bottom */}
+      <div aria-hidden="true" style={{position:"absolute",bottom:"-15%",left:"50%",transform:"translateX(-50%)",width:520,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(34,197,94,.35) 0%,transparent 70%)",filter:"blur(60px)",animation:"orbC 11s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
       {/* Menu content */}
-      <div style={{position:"relative",zIndex:1,width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",overflow:"auto",padding:"20px 0"}}>
+      <div style={{position:"relative",zIndex:1,width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",overflow:"auto",padding:"16px 0"}}>
       <Fade><TopBar/>
-      <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
-      <p style={desc}>{t("sub")}</p>
+      {/* Big football */}
+      <div style={{fontSize:"clamp(54px,12vw,78px)",lineHeight:1,marginTop:8,marginBottom:-4,filter:`drop-shadow(0 6px 18px ${isDark?"rgba(34,211,238,.55)":"rgba(60,40,20,.30)"})`,animation:"primaryPulse 3.5s ease-in-out infinite"}}>⚽</div>
+      <h1 style={title3D} dangerouslySetInnerHTML={{__html:t("title").replace(/<\/?b>/g,"")}}/>
+      <p style={{...desc,marginBottom:14}}>{t("sub")}</p>
       {(() => {
         const tourneyResume=readProgress("bf_tourney");
         const leagueResume=readProgress("bf_league");
-        const Badge=({children})=>(<span style={{background:cc.accentSolid,color:"#000",fontSize:"0.65em",padding:"2px 7px",borderRadius:"10px",fontWeight:800,marginLeft:6,letterSpacing:".5px"}}>{children}</span>);
-        return(<div style={panel}>
+        const Badge=({children,color})=>(<span style={{background:color||"rgba(255,255,255,.95)",color:"#000",fontSize:"0.65em",padding:"2px 8px",borderRadius:"10px",fontWeight:800,marginLeft:6,letterSpacing:".5px",textShadow:"none"}}>{children}</span>);
+        return(<>
+          {/* Name chip */}
           {(()=>{
             const has=playerName.trim();
-            return(<div onClick={!has?()=>{sfx.click();setMode(null);setScr("playerName")}:undefined} style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,padding:"6px 12px",background:has?`${cc.accentSolid}14`:`${cc.accentSolid}28`,border:`1px solid ${has?cc.cardBorder:cc.accentSolid}`,borderRadius:"100px",fontSize:"0.85em",color:cc.txt,cursor:has?"default":"pointer"}}>
+            return(<div onClick={!has?()=>{sfx.click();setMode(null);setScr("playerName")}:undefined} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"7px 14px",background:has?(isDark?"rgba(255,255,255,.08)":"rgba(0,0,0,.05)"):`${cc.accentSolid}28`,border:`1.4px solid ${has?cc.cardBorder:cc.accentSolid}`,borderRadius:"100px",fontSize:"0.85em",color:cc.txt,cursor:has?"default":"pointer",backdropFilter:"blur(8px)"}}>
               <span style={{fontSize:"1.1em"}}>👤</span>
-              <span style={{fontWeight:600,opacity:has?1:.7,fontStyle:has?"normal":"italic"}}>{has?playerName:t("enterName")}</span>
+              <span style={{fontWeight:700,opacity:has?1:.75,fontStyle:has?"normal":"italic"}}>{has?playerName:t("enterName")}</span>
               <button onClick={(e)=>{e.stopPropagation();sfx.click();setMode(null);setScr("playerName")}} title="Edit" style={{background:"transparent",border:"none",color:cc.accentSolid,cursor:"pointer",padding:0,marginLeft:"auto",display:"inline-flex",alignItems:"center"}}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
               </button>
             </div>);
           })()}
-          <button className="mItem mItemPrimary" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
+          {/* Big colored buttons */}
+          <button className="mItem" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={bigBtn(PAL.ai)}>
+            <span style={btnIcon}>{ICO.ai}</span><span style={btnLabel}>{t("ai")}</span>
+          </button>
           <button className="mItem" onClick={()=>{
             sfx.click();setMode("tourney");setSel(null);
             const sv=readProgress("bf_tourney");
             const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
             if(sv&&j&&playerName.trim()){setJ1(j);setTRound(sv.tRound);setTResult(null);setScr("tourneyNext")}
             else setScr(playerName.trim()?"jersey1":"playerName");
-          }} style={mItem(false)}>{ICO.tourney}<span>{t("tourney")}</span>{tourneyResume&&<Badge>{(tourneyResume.tRound||0)+1}/3</Badge>}</button>
+          }} style={bigBtn(PAL.tourney)}>
+            <span style={btnIcon}>{ICO.tourney}</span><span style={btnLabel}>{t("tourney")}{tourneyResume&&<Badge color="#fff">{(tourneyResume.tRound||0)+1}/3</Badge>}</span>
+          </button>
           <button className="mItem" onClick={()=>{
             sfx.click();setMode("league");setSel(null);
             const sv=readProgress("bf_league");
             const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
             if(sv&&j&&playerName.trim()){setJ1(j);setLeagueDiv(sv.leagueDiv);setLeagueTable(sv.leagueTable);setLeagueMatchday(sv.leagueMatchday);setScr("leagueTable")}
             else{setLeagueDiv(3);setScr(playerName.trim()?"jersey1":"playerName")}
-          }} style={mItem(false)}>{ICO.league}<span>{t("league")}</span>{leagueResume&&<Badge>{t(`league${leagueResume.leagueDiv}`).split(" ")[0]}</Badge>}</button>
-        <button className="mItem" onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={mItem(false)}>{ICO.online}<span>{t("online")}</span></button>
-        <div style={{marginTop:14,display:"flex",gap:10,justifyContent:"center"}}>
-          <button className="mGhost" onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={mGhost}>{ICO.tut}<span>{t("tutorial")}</span></button>
-          <button className="mGhost" onClick={()=>{sfx.click();setScr("legal")}} style={mGhost}>{ICO.legal}<span>{t("legal")}</span></button>
-        </div>
-      </div>);
+          }} style={bigBtn(PAL.league)}>
+            <span style={btnIcon}>{ICO.league}</span><span style={btnLabel}>{t("league")}{leagueResume&&<Badge color="#fff">{t(`league${leagueResume.leagueDiv}`).split(" ")[0]}</Badge>}</span>
+          </button>
+          <button className="mItem" onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={bigBtn(PAL.online)}>
+            <span style={btnIcon}>{ICO.online}</span><span style={btnLabel}>{t("online")}</span>
+          </button>
+          {/* Tutorial hint */}
+          <div style={{maxWidth:320,width:"90%",marginTop:14,padding:"10px 14px",background:isDark?"rgba(255,255,255,.04)":"rgba(0,0,0,.03)",border:`1px solid ${cc.cardBorder}`,borderRadius:14,fontSize:"0.78em",lineHeight:1.45,color:cc.sub,textAlign:"center"}}>
+            <span style={{display:"block"}}>{t("ctrl")}</span>
+          </div>
+          {/* Tutorial / Legal small ghost buttons */}
+          <div style={{marginTop:12,display:"flex",gap:10,justifyContent:"center"}}>
+            <button className="mGhost" onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={mGhost}><span>{ICO.tut}</span><span>{t("tutorial")}</span></button>
+            <button className="mGhost" onClick={()=>{sfx.click();setScr("legal")}} style={mGhost}><span>{ICO.legal}</span><span>{t("legal")}</span></button>
+          </div>
+        </>);
       })()}
       <Footer/>
     </Fade>
