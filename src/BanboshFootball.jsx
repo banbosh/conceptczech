@@ -382,7 +382,8 @@ export default function FootballGame(){
   const[showTutorial,setShowTutorial]=useState(false);
   
   // Player name
-  const[playerName,setPlayerName]=useState("");
+  const[playerName,setPlayerName]=useState(()=>{try{return localStorage.getItem("bf_playerName")||""}catch(e){return ""}});
+  useEffect(()=>{try{if(playerName)localStorage.setItem("bf_playerName",playerName)}catch(e){}},[playerName]);
   
   // League state
   const[leagueDiv,setLeagueDiv]=useState(3); // 3=3rd league, 2=2nd, 1=1st
@@ -852,9 +853,9 @@ export default function FootballGame(){
       <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
       <p style={desc}>{t("sub")}</p>
       <div style={panel}>
-        <button className="mItem mItemPrimary" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr("playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
-        <button className="mItem" onClick={()=>{sfx.click();setMode("tourney");setSel(null);setScr("playerName")}} style={mItem(false)}>{ICO.tourney}<span>{t("tourney")}</span></button>
-        <button className="mItem" onClick={()=>{sfx.click();setMode("league");setSel(null);setLeagueDiv(3);setScr("playerName")}} style={mItem(false)}>{ICO.league}<span>{t("league")}</span></button>
+        <button className="mItem mItemPrimary" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
+        <button className="mItem" onClick={()=>{sfx.click();setMode("tourney");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={mItem(false)}>{ICO.tourney}<span>{t("tourney")}</span></button>
+        <button className="mItem" onClick={()=>{sfx.click();setMode("league");setSel(null);setLeagueDiv(3);setScr(playerName.trim()?"jersey1":"playerName")}} style={mItem(false)}>{ICO.league}<span>{t("league")}</span></button>
         <button className="mItem" onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={mItem(false)}>{ICO.online}<span>{t("online")}</span></button>
         <div style={{marginTop:14,display:"flex",gap:10,justifyContent:"center"}}>
           <button className="mGhost" onClick={()=>{sfx.click();setTutStep(0);setScr("tutorial")}} style={mGhost}>{ICO.tut}<span>{t("tutorial")}</span></button>
