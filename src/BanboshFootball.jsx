@@ -815,7 +815,7 @@ export default function FootballGame(){
   const ThemeBtn=()=>(<button onClick={()=>{sfx.click();setTheme(p=>p==="dark"?"light":"dark")}} style={{background:"none",border:"none",color:cc.txt,opacity:.88,cursor:"pointer",width:28,height:28,padding:0,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 4a8 8 0 0 1 0 16V4z"/></svg></button>);
   const SndBtn=()=>(<button onClick={()=>{sfx.init();sfx.click();setSndOn(p=>!p)}} style={{background:"none",border:"none",color:cc.txt,opacity:.88,cursor:"pointer",width:28,height:28,padding:0,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M8 10h2l3-2v8l-3-2H8z"/>{sndOn?<path d="M14.5 9.5a4 4 0 0 1 0 5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>:<path d="M15 15L18 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>}</svg></button>);
   const LangSel=()=>(<select value={lang} onChange={e=>{sfx.click();setLang(e.target.value)}} style={{...ubtn(),background:cc.accent,color:theme==="dark"?"#222":"#504030",fontWeight:700,fontSize:"0.9em",padding:"8px 14px",WebkitAppearance:"none",appearance:"none"}}>{LANGS.map(l=><option key={l} value={l}>{LC[l]} {LL[l]}</option>)}</select>);
-  const TopBar=()=>(<div style={{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}}><ThemeBtn/><LangSel/><SndBtn/></div>);
+  const TopBar=()=>(<div style={{display:"flex",gap:"8px",alignItems:"center"}}><ThemeBtn/><LangSel/><SndBtn/></div>);
   const BackBtn=({to,fn})=>(<button onClick={()=>{sfx.click();if(fn)fn();setScr(to);setSel(null)}} style={ubtn({fontSize:"0.9em",marginBottom:"10px"})}>{t("back")}</button>);
   const Footer=()=>(<div style={{marginTop:"18px",fontSize:"0.85em",color:cc.sub,textAlign:"center"}}>{t("created")||"Created by"} <a href="https://www.banbosh.cz" target="_blank" rel="noopener noreferrer" style={{color:cc.acc,textDecoration:"none"}}>Banbosh Studio</a></div>);
   const Slot=({n})=>(<div style={{background:cc.inputBg,border:`1.5px solid ${cc.border}50`,borderRadius:10,padding:"6px 12px",textAlign:"center",minWidth:50}}><div style={{fontSize:16}}>👤</div><div style={{fontSize:"0.7em",color:cc.sub,fontWeight:700}}>{t("player")} {n}</div></div>);
@@ -873,7 +873,11 @@ export default function FootballGame(){
       <div aria-hidden="true" style={{position:"absolute",inset:0,background:isDark?"linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0) 38%,rgba(0,0,0,.55) 60%,rgba(0,0,0,.85) 100%)":"linear-gradient(180deg,rgba(253,246,240,0) 0%,rgba(253,246,240,0) 38%,rgba(253,246,240,.7) 60%,rgba(253,246,240,.92) 100%)",zIndex:0,pointerEvents:"none"}}/>
       {/* Menu content — TopBar at top, name+buttons in the bottom half */}
       <div style={{position:"relative",zIndex:1,width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"space-between",overflow:"auto",padding:"8px 0 12px"}}>
-      <Fade><TopBar/></Fade>
+      <div style={{width:"100%",padding:"4px 12px 0",display:"flex",justifyContent:"center"}}>
+        <div style={{background:isDark?"rgba(0,0,0,.40)":"rgba(255,255,255,.65)",backdropFilter:"blur(8px)",borderRadius:"100px",padding:"4px 10px",border:`1px solid ${cc.cardBorder}`}}>
+          <TopBar/>
+        </div>
+      </div>
       <div style={{flex:1}}/>
       <Fade>
       {(() => {
