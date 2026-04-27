@@ -868,29 +868,33 @@ export default function FootballGame(){
     // 3D extruded title — works in both themes via theme-aware shadow
     const isDark=theme==="dark";
     const title3D={
-      fontSize:"clamp(2.2em,9vw,3em)",fontWeight:900,letterSpacing:"3px",lineHeight:1,
-      margin:"4px 0 6px",textAlign:"center",
+      fontSize:"clamp(1.5em,6.5vw,2.1em)",fontWeight:900,letterSpacing:"2px",lineHeight:1.05,
+      margin:"2px 0 4px",textAlign:"center",
       background:"linear-gradient(180deg,#fff 0%,#f0f4f8 45%,#3b82f6 55%,#1d4ed8 100%)",
       WebkitBackgroundClip:"text",backgroundClip:"text",WebkitTextFillColor:"transparent",color:"transparent",
-      textShadow:isDark?"0 2px 0 rgba(0,0,0,.4),0 4px 0 rgba(0,0,0,.3),0 6px 14px rgba(34,211,238,.35)":"0 2px 0 rgba(0,0,0,.15),0 4px 12px rgba(60,40,20,.20)",
-      filter:"drop-shadow(0 4px 8px rgba(0,0,0,.4))",
+      textShadow:isDark?"0 1px 0 rgba(0,0,0,.4),0 2px 0 rgba(0,0,0,.3),0 4px 10px rgba(34,211,238,.35)":"0 1px 0 rgba(0,0,0,.15),0 3px 10px rgba(60,40,20,.20)",
+      filter:"drop-shadow(0 3px 6px rgba(0,0,0,.4))",
     };
     return(<div style={{...ctn,position:"relative",overflow:"hidden"}}>
       <style>{css}</style>
       {/* Stadium-feel background gradient */}
       <div aria-hidden="true" style={{position:"absolute",inset:0,background:isDark?"radial-gradient(ellipse at 50% 65%,rgba(34,197,94,.30) 0%,rgba(20,83,45,.25) 30%,transparent 65%),linear-gradient(180deg,#040711 0%,#0a0e17 60%,#0f1d14 100%)":"radial-gradient(ellipse at 50% 65%,rgba(34,197,94,.18) 0%,transparent 50%),linear-gradient(180deg,#FDF6F0 0%,#FDF6F0 50%,#e6dfd5 100%)",zIndex:0,pointerEvents:"none"}}/>
+      {/* Intro art as subtle football-vibe layer */}
+      <div aria-hidden="true" style={{position:"absolute",inset:0,backgroundImage:"url(/intro.png)",backgroundSize:"cover",backgroundPosition:"center 60%",opacity:isDark?.22:.16,filter:"blur(3px) saturate(.9)",zIndex:0,pointerEvents:"none"}}/>
+      {/* Dark vignette so menu stays readable */}
+      <div aria-hidden="true" style={{position:"absolute",inset:0,background:isDark?"radial-gradient(ellipse at 50% 50%,transparent 0%,rgba(10,14,23,.55) 80%,rgba(10,14,23,.85) 100%)":"radial-gradient(ellipse at 50% 50%,transparent 0%,rgba(253,246,240,.55) 80%,rgba(253,246,240,.85) 100%)",zIndex:0,pointerEvents:"none"}}/>
       {/* Stadium light beams (top corners) */}
       <div aria-hidden="true" style={{position:"absolute",top:"-30%",left:"-15%",width:340,height:340,borderRadius:"50%",background:"radial-gradient(circle,rgba(96,165,250,.50) 0%,transparent 70%)",filter:"blur(46px)",animation:"orbA 13s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
       <div aria-hidden="true" style={{position:"absolute",top:"-30%",right:"-15%",width:340,height:340,borderRadius:"50%",background:"radial-gradient(circle,rgba(96,165,250,.50) 0%,transparent 70%)",filter:"blur(46px)",animation:"orbB 16s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
       {/* Subtle green ambient at bottom */}
       <div aria-hidden="true" style={{position:"absolute",bottom:"-15%",left:"50%",transform:"translateX(-50%)",width:520,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(34,197,94,.35) 0%,transparent 70%)",filter:"blur(60px)",animation:"orbC 11s ease-in-out infinite",zIndex:0,pointerEvents:"none"}}/>
       {/* Menu content */}
-      <div style={{position:"relative",zIndex:1,width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",overflow:"auto",padding:"16px 0"}}>
+      <div style={{position:"relative",zIndex:1,width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",overflow:"auto",padding:"10px 0 16px",gap:0}}>
       <Fade><TopBar/>
-      {/* Big football */}
-      <div style={{fontSize:"clamp(54px,12vw,78px)",lineHeight:1,marginTop:8,marginBottom:-4,filter:`drop-shadow(0 6px 18px ${isDark?"rgba(34,211,238,.55)":"rgba(60,40,20,.30)"})`,animation:"primaryPulse 3.5s ease-in-out infinite"}}>⚽</div>
+      {/* Football */}
+      <div style={{fontSize:"clamp(38px,8.5vw,52px)",lineHeight:1,marginTop:2,marginBottom:-2,filter:`drop-shadow(0 4px 12px ${isDark?"rgba(34,211,238,.55)":"rgba(60,40,20,.30)"})`,animation:"primaryPulse 3.5s ease-in-out infinite"}}>⚽</div>
       <h1 style={title3D} dangerouslySetInnerHTML={{__html:t("title").replace(/<\/?b>/g,"")}}/>
-      <p style={{...desc,marginBottom:14}}>{t("sub")}</p>
+      <p style={{...desc,marginBottom:10,fontSize:"0.85em"}}>{t("sub")}</p>
       {(() => {
         const tourneyResume=readProgress("bf_tourney");
         const leagueResume=readProgress("bf_league");
