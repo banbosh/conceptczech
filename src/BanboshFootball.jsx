@@ -355,6 +355,11 @@ function drawB(x,bx,by,fire){
 function rr(x,a,b,cc,d,r){x.beginPath();x.moveTo(a+r,b);x.lineTo(a+cc-r,b);x.quadraticCurveTo(a+cc,b,a+cc,b+r);x.lineTo(a+cc,b+d-r);x.quadraticCurveTo(a+cc,b+d,a+cc-r,b+d);x.lineTo(a+r,b+d);x.quadraticCurveTo(a,b+d,a,b+d-r);x.lineTo(a,b+r);x.quadraticCurveTo(a,b,a+r,b);x.closePath()}
 function drawPowerup(x,pu,now){const pulse=1+Math.sin(now*.004)*.15;const r=16*pulse;x.save();x.shadowColor=pu.type.color;x.shadowBlur=12;x.fillStyle=pu.type.color+"40";x.beginPath();x.arc(pu.x,pu.y,r,0,Math.PI*2);x.fill();x.shadowBlur=0;x.font=`${18*pulse}px sans-serif`;x.textAlign="center";x.textBaseline="middle";x.fillText(pu.type.emoji,pu.x,pu.y);x.restore()}
 
+// Module-level Fade so React keeps the same component identity across renders.
+// Defining it inside the parent component would unmount its children every render
+// and kill input focus / typing on Android WebView.
+const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.77,.32,1.01) both",display:"flex",flexDirection:"column",alignItems:"center",width:"100%",padding:"20px"}}>{children}</div>);
+
 /* ═══════ MAIN ═══════ */
 export default function FootballGame(){
   const cvRef=useRef(null),rafRef=useRef(null),tMap=useRef(new Map());
@@ -813,7 +818,6 @@ export default function FootballGame(){
   const TopBar=()=>(<div style={{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}}><ThemeBtn/><LangSel/><SndBtn/></div>);
   const BackBtn=({to,fn})=>(<button onClick={()=>{sfx.click();if(fn)fn();setScr(to);setSel(null)}} style={ubtn({fontSize:"0.9em",marginBottom:"10px"})}>{t("back")}</button>);
   const Footer=()=>(<div style={{marginTop:"18px",fontSize:"0.85em",color:cc.sub,textAlign:"center"}}>{t("created")||"Created by"} <a href="https://www.banbosh.cz" target="_blank" rel="noopener noreferrer" style={{color:cc.acc,textDecoration:"none"}}>Banbosh Studio</a></div>);
-  const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.77,.32,1.01) both",display:"flex",flexDirection:"column",alignItems:"center",width:"100%",padding:"20px"}}>{children}</div>);
   const Slot=({n})=>(<div style={{background:cc.inputBg,border:`1.5px solid ${cc.border}50`,borderRadius:10,padding:"6px 12px",textAlign:"center",minWidth:50}}><div style={{fontSize:16}}>👤</div><div style={{fontSize:"0.7em",color:cc.sub,fontWeight:700}}>{t("player")} {n}</div></div>);
 
   /* ═══════ SCREENS ═══════ */
@@ -975,18 +979,10 @@ export default function FootballGame(){
     <div style={{width:"100%",maxWidth:360,display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
       <input
         type="text"
-        inputMode="text"
         value={playerName}
         onChange={e=>setPlayerName(e.target.value)}
-        onFocus={e=>{try{setTimeout(()=>e.target.select(),0)}catch(err){}}}
-        onKeyDown={e=>{if(e.key==="Enter"&&playerName.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}}}
         placeholder={t("playerName")}
         maxLength={15}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="words"
-        spellCheck={false}
-        tabIndex={0}
         style={{width:"100%",background:theme==="dark"?"rgba(255,255,255,.10)":"rgba(0,0,0,.04)",border:`2px solid ${cc.accentSolid}`,borderRadius:100,padding:"16px 22px",color:cc.txt,fontSize:"1.2em",outline:"none",textAlign:"center",WebkitUserSelect:"text",userSelect:"text",fontFamily:"inherit",fontWeight:700,boxSizing:"border-box"}}/>
       {playerName.trim()&&<button onClick={()=>{setPlayerName("");try{localStorage.removeItem("bf_playerName")}catch(e){}}} style={{background:"transparent",border:"none",color:cc.sub,fontSize:"0.8em",cursor:"pointer",textDecoration:"underline",padding:4}}>clear</button>}
       <button onClick={()=>{
