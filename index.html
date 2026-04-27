@@ -36,7 +36,8 @@
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
   <script>
-    if ('serviceWorker' in navigator) {
+    // Skip service worker in native Capacitor build (assets are already bundled)
+    if ('serviceWorker' in navigator && !window.Capacitor?.isNativePlatform?.()) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js').catch(() => {});
       });
