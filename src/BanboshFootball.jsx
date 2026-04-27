@@ -666,12 +666,7 @@ export default function FootballGame(){
     const t=setTimeout(()=>setShowIntro(false),2500);
     return()=>clearTimeout(t);
   },[showIntro]);
-  // First-launch: force name screen if user never entered a name
-  useEffect(()=>{
-    if(!showIntro&&!playerName.trim()&&scr==="menu"){
-      setMode(null);setScr("playerName");
-    }
-  },[showIntro,playerName,scr]);
+  // (Auto-route to playerName screen removed — name is now inline in menu)
 
   /* GAME LOOP */
   useEffect(()=>{if(scr!=="play"){if(rafRef.current)cancelAnimationFrame(rafRef.current);return}
@@ -882,42 +877,53 @@ export default function FootballGame(){
         const leagueResume=readProgress("bf_league");
         const Badge=({children,color})=>(<span style={{background:color||"rgba(255,255,255,.95)",color:"#000",fontSize:"0.65em",padding:"2px 8px",borderRadius:"10px",fontWeight:800,marginLeft:6,letterSpacing:".5px",textShadow:"none"}}>{children}</span>);
         return(<>
-          {/* Name chip — entire chip is one big tap target */}
+          {/* Inline name input — always visible, always typeable */}
+          <div style={{width:"100%",maxWidth:320,marginBottom:14,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+            <label style={{fontSize:"0.78em",color:cc.txt,fontWeight:700,letterSpacing:".5px",textTransform:"uppercase",opacity:.85,textShadow:isDark?"0 1px 2px rgba(0,0,0,.6)":"none"}}>👤 {t("enterName")}</label>
+            <input
+              type="text"
+              inputMode="text"
+              value={playerName}
+              onChange={e=>setPlayerName(e.target.value)}
+              placeholder={t("playerName")}
+              maxLength={15}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="words"
+              spellCheck={false}
+              style={{width:"100%",background:isDark?"rgba(255,255,255,.10)":"rgba(255,255,255,.85)",border:`2px solid ${playerName.trim()?cc.cardBorder:cc.accentSolid}`,borderRadius:"100px",padding:"12px 18px",color:cc.txt,fontSize:"1.05em",outline:"none",textAlign:"center",WebkitUserSelect:"text",userSelect:"text",fontFamily:"inherit",fontWeight:700,backdropFilter:"blur(8px)"}}/>
+          </div>
+          {/* Big colored buttons — disabled until name is set */}
           {(()=>{
-            const has=playerName.trim();
-            return(<button onClick={()=>{sfx.click();setMode(null);setScr("playerName")}} style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,padding:"10px 18px",background:has?(isDark?"rgba(255,255,255,.10)":"rgba(0,0,0,.06)"):`${cc.accentSolid}30`,border:`1.5px solid ${has?cc.cardBorder:cc.accentSolid}`,borderRadius:"100px",fontSize:"0.9em",color:cc.txt,cursor:"pointer",WebkitTapHighlightColor:"transparent",backdropFilter:"blur(8px)",fontFamily:"inherit",minHeight:42}}>
-              <span style={{fontSize:"1.2em"}}>👤</span>
-              <span style={{fontWeight:700,opacity:has?1:.85,fontStyle:has?"normal":"italic"}}>{has?playerName:t("enterName")}</span>
-              <span style={{marginLeft:"auto",color:cc.accentSolid,display:"inline-flex",alignItems:"center"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-              </span>
-            </button>);
+            const ready=playerName.trim().length>0;
+            const dimStyle=ready?{}:{opacity:.45,cursor:"not-allowed",filter:"grayscale(.5)"};
+            return(<>
+              <button className="mItem" disabled={!ready} onClick={()=>{if(!ready)return;sfx.click();setMode("ai");setSel(null);setScr("jersey1")}} style={{...bigBtn(PAL.ai),...dimStyle}}>
+                <span style={btnIcon}>{ICO.ai}</span><span style={btnLabel}>{t("ai")}</span>
+              </button>
+              <button className="mItem" disabled={!ready} onClick={()=>{
+                if(!ready)return;sfx.click();setMode("tourney");setSel(null);
+                const sv=readProgress("bf_tourney");
+                const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
+                if(sv&&j){setJ1(j);setTRound(sv.tRound);setTResult(null);setScr("tourneyNext")}
+                else setScr("jersey1");
+              }} style={{...bigBtn(PAL.tourney),...dimStyle}}>
+                <span style={btnIcon}>{ICO.tourney}</span><span style={btnLabel}>{t("tourney")}{tourneyResume&&<Badge color="#fff">{(tourneyResume.tRound||0)+1}/3</Badge>}</span>
+              </button>
+              <button className="mItem" disabled={!ready} onClick={()=>{
+                if(!ready)return;sfx.click();setMode("league");setSel(null);
+                const sv=readProgress("bf_league");
+                const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
+                if(sv&&j){setJ1(j);setLeagueDiv(sv.leagueDiv);setLeagueTable(sv.leagueTable);setLeagueMatchday(sv.leagueMatchday);setScr("leagueTable")}
+                else{setLeagueDiv(3);setScr("jersey1")}
+              }} style={{...bigBtn(PAL.league),...dimStyle}}>
+                <span style={btnIcon}>{ICO.league}</span><span style={btnLabel}>{t("league")}{leagueResume&&<Badge color="#fff">{t(`league${leagueResume.leagueDiv}`).split(" ")[0]}</Badge>}</span>
+              </button>
+              <button className="mItem" disabled={!ready} onClick={()=>{if(!ready)return;sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={{...bigBtn(PAL.online),...dimStyle}}>
+                <span style={btnIcon}>{ICO.online}</span><span style={btnLabel}>{t("online")}</span>
+              </button>
+            </>);
           })()}
-          {/* Big colored buttons */}
-          <button className="mItem" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={bigBtn(PAL.ai)}>
-            <span style={btnIcon}>{ICO.ai}</span><span style={btnLabel}>{t("ai")}</span>
-          </button>
-          <button className="mItem" onClick={()=>{
-            sfx.click();setMode("tourney");setSel(null);
-            const sv=readProgress("bf_tourney");
-            const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
-            if(sv&&j&&playerName.trim()){setJ1(j);setTRound(sv.tRound);setTResult(null);setScr("tourneyNext")}
-            else setScr(playerName.trim()?"jersey1":"playerName");
-          }} style={bigBtn(PAL.tourney)}>
-            <span style={btnIcon}>{ICO.tourney}</span><span style={btnLabel}>{t("tourney")}{tourneyResume&&<Badge color="#fff">{(tourneyResume.tRound||0)+1}/3</Badge>}</span>
-          </button>
-          <button className="mItem" onClick={()=>{
-            sfx.click();setMode("league");setSel(null);
-            const sv=readProgress("bf_league");
-            const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
-            if(sv&&j&&playerName.trim()){setJ1(j);setLeagueDiv(sv.leagueDiv);setLeagueTable(sv.leagueTable);setLeagueMatchday(sv.leagueMatchday);setScr("leagueTable")}
-            else{setLeagueDiv(3);setScr(playerName.trim()?"jersey1":"playerName")}
-          }} style={bigBtn(PAL.league)}>
-            <span style={btnIcon}>{ICO.league}</span><span style={btnLabel}>{t("league")}{leagueResume&&<Badge color="#fff">{t(`league${leagueResume.leagueDiv}`).split(" ")[0]}</Badge>}</span>
-          </button>
-          <button className="mItem" onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={bigBtn(PAL.online)}>
-            <span style={btnIcon}>{ICO.online}</span><span style={btnLabel}>{t("online")}</span>
-          </button>
           {/* Tutorial hint */}
           <div style={{maxWidth:320,width:"90%",marginTop:14,padding:"10px 14px",background:isDark?"rgba(255,255,255,.04)":"rgba(0,0,0,.03)",border:`1px solid ${cc.cardBorder}`,borderRadius:14,fontSize:"0.78em",lineHeight:1.45,color:cc.sub,textAlign:"center"}}>
             <span style={{display:"block"}}>{t("ctrl")}</span>
