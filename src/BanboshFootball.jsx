@@ -968,10 +968,11 @@ export default function FootballGame(){
 
   // Player name screen - special container without touch blocking
   if(scr==="playerName"){
-    return(<div style={{width:"100vw",height:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s"}}><style>{css}</style><Fade><TopBar/><BackBtn to="menu"/>
-    <div style={{fontSize:48,marginBottom:4}}>👤</div>
-    <h2 style={titSm}>{t("enterName")}</h2>
-    <div style={{...panel,gap:14}}>
+    return(<div style={{width:"100vw",minHeight:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s",padding:"16px 16px 80px"}}><style>{css}</style>
+    <Fade><TopBar/><BackBtn to="menu"/>
+    <div style={{fontSize:42,marginTop:20,marginBottom:8}}>👤</div>
+    <h2 style={{...titSm,marginBottom:18}}>{t("enterName")}</h2>
+    <div style={{width:"100%",maxWidth:360,display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
       <input
         type="text"
         inputMode="text"
@@ -983,13 +984,14 @@ export default function FootballGame(){
         maxLength={15}
         autoComplete="off"
         autoCorrect="off"
-        autoCapitalize="off"
+        autoCapitalize="words"
         spellCheck={false}
-        style={{width:"100%",background:cc.inputBg,border:`2px solid ${cc.accentSolid}`,borderRadius:100,padding:"16px 22px",color:cc.txt,fontSize:"1.2em",outline:"none",textAlign:"center",WebkitUserSelect:"text",userSelect:"text",fontFamily:"inherit",fontWeight:600}}/>
+        tabIndex={0}
+        style={{width:"100%",background:theme==="dark"?"rgba(255,255,255,.10)":"rgba(0,0,0,.04)",border:`2px solid ${cc.accentSolid}`,borderRadius:100,padding:"16px 22px",color:cc.txt,fontSize:"1.2em",outline:"none",textAlign:"center",WebkitUserSelect:"text",userSelect:"text",fontFamily:"inherit",fontWeight:700,boxSizing:"border-box"}}/>
       {playerName.trim()&&<button onClick={()=>{setPlayerName("");try{localStorage.removeItem("bf_playerName")}catch(e){}}} style={{background:"transparent",border:"none",color:cc.sub,fontSize:"0.8em",cursor:"pointer",textDecoration:"underline",padding:4}}>clear</button>}
       <button onClick={()=>{
         if(playerName.trim()){sfx.click();setSel(null);setScr(mode?"jersey1":"menu")}
-      }} disabled={!playerName.trim()} style={{...gbtn(),opacity:playerName.trim()?1:.5,cursor:playerName.trim()?"pointer":"not-allowed"}}>{t("confirm")} →</button>
+      }} disabled={!playerName.trim()} style={{...gbtn(),width:"100%",maxWidth:360,marginTop:0,opacity:playerName.trim()?1:.5,cursor:playerName.trim()?"pointer":"not-allowed"}}>{t("confirm")} →</button>
     </div>
   </Fade></div>);
   }
