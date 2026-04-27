@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 /* ═══════ CONSTANTS ═══════ */
-const W=380,H=660,PR=18,BR=14,GW=130,GL=(W-GW)/2,GR=(W+GW)/2,FRC=0.981,KICK=14,PLR=0.13;
+const W=380,H=660,PR=20,BR=14,GW=130,GL=(W-GW)/2,GR=(W+GW)/2,FRC=0.981,KICK=14,PLR=0.13,PSC=1.12;
 
 /* ═══════ POWER-UP TYPES ═══════ */
 const PU_TYPES=[
@@ -716,7 +716,7 @@ export default function FootballGame(){
       
       // Depth sort
       const eff1=g.effects.p1,eff2=g.effects.p2,now2=Date.now();
-      const sc1=eff1.giant&&now2<eff1.giant?1.4:1,sc2=eff2.giant&&now2<eff2.giant?1.4:1;
+      const sc1=PSC*(eff1.giant&&now2<eff1.giant?1.4:1),sc2=PSC*(eff2.giant&&now2<eff2.giant?1.4:1);
       // Compute per-player animation: bob, lean, eye tracking, kick lunge, goal jump
       const tNow=Date.now();
       function pAnim(pl){
@@ -768,7 +768,12 @@ export default function FootballGame(){
     .mItem:active{transform:scale(.97)}
     .mItem:hover{filter:brightness(1.05)}
     .mGhost{transition:transform .15s ease,background .2s ease,border-color .2s ease}
-    .mGhost:active{transform:scale(.95)}`;
+    .mGhost:active{transform:scale(.95)}
+    @keyframes ballBounce{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-14px) rotate(180deg)}}
+    @keyframes primaryPulse{0%,100%{box-shadow:0 4px 20px rgba(34,211,238,.28)}50%{box-shadow:0 6px 32px rgba(34,211,238,.55)}}
+    @keyframes spotlight{0%,100%{transform:translate(-50%,-50%) rotate(0deg)}50%{transform:translate(-50%,-50%) rotate(180deg)}}
+    .mItemPrimary{animation:primaryPulse 2.6s ease-in-out infinite}
+    .menuBall{animation:ballBounce 2.4s ease-in-out infinite}`;
   const ctn={width:"100vw",height:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",touchAction:"none",userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s"};
   const panel={background:cc.card,borderRadius:"29px",boxShadow:theme==="dark"?"0 8px 40px rgba(0,0,0,0.5)":"0 8px 30px rgba(60,40,20,0.06)",width:"90%",maxWidth:"420px",padding:"25px 20px",display:"flex",flexDirection:"column",alignItems:"center",border:`1.8px solid ${cc.cardBorder}`,transition:"background 0.33s",backdropFilter:"blur(16px)"};
   const ubtn=(ex={})=>({fontFamily:"inherit",borderRadius:"100px",outline:"none",border:theme==="light"?`1.6px solid ${cc.cardBorder}`:"1.6px solid transparent",background:cc.btn,color:cc.btnTxt,padding:"9px 18px",cursor:"pointer",fontWeight:600,transition:"all 0.2s",WebkitTapHighlightColor:"transparent",boxShadow:theme==="light"?"0 1px 4px rgba(0,0,0,0.06)":"none",...ex});
@@ -832,10 +837,22 @@ export default function FootballGame(){
       cursor:"pointer",WebkitTapHighlightColor:"transparent",
     };
     return(<div style={ctn}><style>{css}</style><Fade><TopBar/>
+      <div className="menuBall" style={{display:"flex",justifyContent:"center",marginBottom:-2}}>
+        <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
+          <defs>
+            <radialGradient id="ballG" cx="36%" cy="32%" r="68%">
+              <stop offset="0%" stopColor="#ffd06b"/>
+              <stop offset="50%" stopColor="#ee6a17"/>
+              <stop offset="100%" stopColor="#a83b06"/>
+            </radialGradient>
+          </defs>
+          <circle cx="28" cy="28" r="25" fill="url(#ballG)" stroke="#5a1d04" strokeWidth="1.2"/>
+        </svg>
+      </div>
       <h1 style={titS} dangerouslySetInnerHTML={{__html:t("title")}}/>
       <p style={desc}>{t("sub")}</p>
       <div style={panel}>
-        <button className="mItem" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr("playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
+        <button className="mItem mItemPrimary" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr("playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
         <button className="mItem" onClick={()=>{sfx.click();setMode("tourney");setSel(null);setScr("playerName")}} style={mItem(false)}>{ICO.tourney}<span>{t("tourney")}</span></button>
         <button className="mItem" onClick={()=>{sfx.click();setMode("league");setSel(null);setLeagueDiv(3);setScr("playerName")}} style={mItem(false)}>{ICO.league}<span>{t("league")}</span></button>
         <button className="mItem" onClick={()=>{sfx.click();setRoomCode("");setRoomIn("");setScr("online")}} style={mItem(false)}>{ICO.online}<span>{t("online")}</span></button>
