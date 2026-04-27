@@ -666,6 +666,12 @@ export default function FootballGame(){
     const t=setTimeout(()=>setShowIntro(false),2500);
     return()=>clearTimeout(t);
   },[showIntro]);
+  // First-launch: force name screen if user never entered a name
+  useEffect(()=>{
+    if(!showIntro&&!playerName.trim()&&scr==="menu"){
+      setMode(null);setScr("playerName");
+    }
+  },[showIntro,playerName,scr]);
 
   /* GAME LOOP */
   useEffect(()=>{if(scr!=="play"){if(rafRef.current)cancelAnimationFrame(rafRef.current);return}
@@ -875,12 +881,16 @@ export default function FootballGame(){
         const leagueResume=readProgress("bf_league");
         const Badge=({children})=>(<span style={{background:cc.accentSolid,color:"#000",fontSize:"0.65em",padding:"2px 7px",borderRadius:"10px",fontWeight:800,marginLeft:6,letterSpacing:".5px"}}>{children}</span>);
         return(<div style={panel}>
-          {playerName.trim()&&(<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,padding:"6px 12px",background:`${cc.accentSolid}14`,border:`1px solid ${cc.cardBorder}`,borderRadius:"100px",fontSize:"0.85em",color:cc.txt}}>
-            <span style={{fontSize:"1.1em"}}>👤</span><span style={{fontWeight:600}}>{playerName}</span>
-            <button onClick={()=>{sfx.click();setMode(null);setScr("playerName")}} title="Edit" style={{background:"transparent",border:"none",color:cc.accentSolid,cursor:"pointer",padding:0,marginLeft:4,display:"inline-flex",alignItems:"center"}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-            </button>
-          </div>)}
+          {(()=>{
+            const has=playerName.trim();
+            return(<div onClick={!has?()=>{sfx.click();setMode(null);setScr("playerName")}:undefined} style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,padding:"6px 12px",background:has?`${cc.accentSolid}14`:`${cc.accentSolid}28`,border:`1px solid ${has?cc.cardBorder:cc.accentSolid}`,borderRadius:"100px",fontSize:"0.85em",color:cc.txt,cursor:has?"default":"pointer"}}>
+              <span style={{fontSize:"1.1em"}}>👤</span>
+              <span style={{fontWeight:600,opacity:has?1:.7,fontStyle:has?"normal":"italic"}}>{has?playerName:t("enterName")}</span>
+              <button onClick={(e)=>{e.stopPropagation();sfx.click();setMode(null);setScr("playerName")}} title="Edit" style={{background:"transparent",border:"none",color:cc.accentSolid,cursor:"pointer",padding:0,marginLeft:"auto",display:"inline-flex",alignItems:"center"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              </button>
+            </div>);
+          })()}
           <button className="mItem mItemPrimary" onClick={()=>{sfx.click();setMode("ai");setSel(null);setScr(playerName.trim()?"jersey1":"playerName")}} style={mItem(true)}>{ICO.ai}<span>{t("ai")}</span></button>
           <button className="mItem" onClick={()=>{
             sfx.click();setMode("tourney");setSel(null);
