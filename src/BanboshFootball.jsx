@@ -448,9 +448,9 @@ export default function FootballGame(){
 
   const gRef=useRef({ball:{x:W/2,y:H/2,vx:0,vy:0},p1:{x:W/2,y:H-100,lx:W/2,ly:H-100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0},p2:{x:W/2,y:100,lx:W/2,ly:100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0},
     p1T:null,p2T:null,sc:[0,0],paused:false,parts:[],ti:{p1:null,p2:null},
-    trail:[],powerups:[],effects:{p1:{},p2:{}},lastPuSpawn:0,combo:{p1:0,p2:0},fireShot:false});
+    trail:[],powerups:[],effects:{p1:{},p2:{}},lastPuSpawn:0,combo:{p1:0,p2:0},fireShot:false,weather:"clear",weatherParts:[]});
 
-  const reset=useCallback(()=>{const g=gRef.current;g.ball={x:W/2,y:H/2,vx:(Math.random()-.5)*3,vy:(Math.random()>.5?1:-1)*4};g.p1={x:W/2,y:H-100,lx:W/2,ly:H-100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p2={x:W/2,y:100,lx:W/2,ly:100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p1T=null;g.p2T=null;g.paused=false;g.parts=[];g.ti={p1:null,p2:null};g.trail=[];g.powerups=[];g.effects={p1:{},p2:{}};g.fireShot=false},[]);
+  const reset=useCallback(()=>{const g=gRef.current;g.ball={x:W/2,y:H/2,vx:(Math.random()-.5)*3,vy:(Math.random()>.5?1:-1)*4};g.p1={x:W/2,y:H-100,lx:W/2,ly:H-100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p2={x:W/2,y:100,lx:W/2,ly:100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p1T=null;g.p2T=null;g.paused=false;g.parts=[];g.ti={p1:null,p2:null};g.trail=[];g.powerups=[];g.effects={p1:{},p2:{}};g.fireShot=false;g.weatherParts=[]},[]);
   const fullReset=useCallback(()=>{reset();gRef.current.sc=[0,0];gRef.current.combo={p1:0,p2:0};gRef.current.lastPuSpawn=0;setSc([0,0]);setCombo({p1:0,p2:0})},[reset]);
   const startG=useCallback(()=>{sfx.stopMenuMusic();if(sndOn){sfx.init();sfx.resume()}setWinner(null);setGm(null);setPuMsg(null);fullReset();setScr("play")},[fullReset,sndOn]);
   const stopAudio=useCallback(()=>{},[]);
@@ -720,6 +720,14 @@ export default function FootballGame(){
       g.parts=g.parts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=.95;p.vy*=.95;p.life-=p.decay;return p.life>0});
       // DRAW
       ctx.clearRect(0,0,W,H);drawField(ctx);
+      // Weather (visual only — no physics) for league matches
+      if(g.weather==="rain"){
+        for(let i=0;i<3;i++)g.weatherParts.push({x:Math.random()*W,y:-8,vx:-.6,vy:11+Math.random()*3,t:"r"});
+        g.weatherParts=g.weatherParts.filter(p=>{p.x+=p.vx;p.y+=p.vy;if(p.y>H+10)return false;ctx.strokeStyle="rgba(180,200,235,0.55)";ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-2,p.y+9);ctx.stroke();return true});
+      }else if(g.weather==="snow"){
+        for(let i=0;i<2;i++)g.weatherParts.push({x:Math.random()*W,y:-6,vx:(Math.random()-.5)*.6,vy:1.1+Math.random()*1.1,sz:1.4+Math.random()*1.8,sw:Math.random()*Math.PI*2,t:"s"});
+        g.weatherParts=g.weatherParts.filter(p=>{p.x+=p.vx+Math.sin(p.y*.04+p.sw)*.45;p.y+=p.vy;if(p.y>H+10)return false;ctx.fillStyle="rgba(255,255,255,0.85)";ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fill();return true});
+      }else if(g.weatherParts.length){g.weatherParts=[]}
       // Ball trail
       g.trail.forEach(tr=>{ctx.globalAlpha=tr.life*.35;ctx.fillStyle=tr.color;ctx.beginPath();ctx.arc(tr.x,tr.y,BR*tr.life*.7,0,Math.PI*2);ctx.fill()});ctx.globalAlpha=1;
       // Power-ups
@@ -1109,6 +1117,10 @@ export default function FootballGame(){
         const opp=getNextOpponent();
         setLeagueOpponent(opp);
         setJ2(opp.jersey);
+        // Random weather per league match (visual only, no physics impact)
+        const r=Math.random();
+        gRef.current.weather=r<.55?"clear":r<.8?"rain":"snow";
+        gRef.current.weatherParts=[];
         startG();
       }} style={gbtn()}>{t("matchday")} {leagueMatchday+1}: vs {getNextOpponent()?.name} →</button>
       :<button onClick={checkSeasonEnd} style={gbtn()}>{t("seasonEnd")} →</button>}
