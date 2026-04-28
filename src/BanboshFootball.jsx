@@ -362,7 +362,7 @@ const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.
 
 // Audio assets supplied by the user (public/audio/*.mp3)
 class Music{
-  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.whistleA=null;this.yay=null;this.woo=null;this.muted=false;this.unlocked=false;this._wantMenu=false;this._wantGame=false}
+  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.whistleA=null;this.yay=null;this.laugh=null;this.woo=null;this.muted=false;this.unlocked=false;this._wantMenu=false;this._wantGame=false}
   _make(src,vol,loop){try{const a=new Audio(src);a.loop=!!loop;a.volume=vol;a.preload="auto";if(loop){a.addEventListener("ended",()=>{try{a.currentTime=0;a.play().catch(()=>{})}catch(e){}})}return a}catch(e){return null}}
   init(){
     if(this.menu)return;
@@ -371,6 +371,7 @@ class Music{
     this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.32,true);
     this.whistleA=this._make("/audio/whistle-blow.mp3",0.7,false);
     this.yay=this._make("/audio/cartoon-yay.mp3",0.7,false);
+    this.laugh=this._make("/audio/mixkit-cartoon-voice-laugh.mp3",0.7,false);
     this.woo=this._make("/audio/woo-hoo.mp3",0.65,false);
   }
   // Reconcile internal flags with actual audio element state
@@ -392,7 +393,7 @@ class Music{
     if(this.unlocked)return;
     this.init();
     this.unlocked=true;
-    [this.whistleA,this.yay,this.woo,this.amb1,this.amb2].forEach(a=>{
+    [this.whistleA,this.yay,this.laugh,this.woo,this.amb1,this.amb2].forEach(a=>{
       if(!a)return;
       try{a.muted=true;const p=a.play();if(p&&p.then){p.then(()=>{try{a.pause();a.currentTime=0;a.muted=false}catch(e){}}).catch(()=>{try{a.muted=false}catch(e){}})}}catch(e){try{a.muted=false}catch(_){}}
     });
@@ -406,11 +407,14 @@ class Music{
     if(!this.whistleA)return;
     try{this.whistleA.currentTime=0;this.whistleA.play().catch(()=>{})}catch(e){}
   }
+  // Randomly pick yay or laugh per goal so it doesn't get repetitive
   goal(){
     if(this.muted)return;
     this.init();
-    if(!this.yay)return;
-    try{this.yay.currentTime=0;this.yay.play().catch(()=>{})}catch(e){}
+    const pool=[this.yay,this.laugh].filter(Boolean);
+    if(!pool.length)return;
+    const a=pool[Math.floor(Math.random()*pool.length)];
+    try{a.currentTime=0;a.play().catch(()=>{})}catch(e){}
   }
   powerup(){
     if(this.muted)return;
