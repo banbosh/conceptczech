@@ -230,7 +230,7 @@ class SFX{
     [440,550,660].forEach((f,i)=>{
       const o=c.createOscillator(),g=c.createGain();
       o.type="sine";o.frequency.value=f;
-      g.gain.setValueAtTime(.08,t+i*.04);g.gain.exponentialRampToValueAtTime(.001,t+i*.04+.08);
+      g.gain.setValueAtTime(.30,t+i*.04);g.gain.exponentialRampToValueAtTime(.001,t+i*.04+.10);
       o.connect(g).connect(c.destination);o.start(t+i*.04);o.stop(t+i*.04+.1)})})}
   
   // Simple warm chord for goal celebration
@@ -396,11 +396,11 @@ class Music{
   init(){
     if(this.menu)return;
     this.menu=this._make("/audio/happy-background-tango.mp3",0.4,true);
-    this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.20,true);
-    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.18,true);
+    this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.15,true);
+    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.13,true);
     this.whistleA=this._make("/audio/whistle-blow.mp3",0.85,false);
     this.yay=this._make("/audio/mixkit-cartoon-voice-laugh.mp3",1.0,false);
-    this.woo=this._make("/audio/woo-hoo.mp3",1.0,false);
+    this.woo=this._make("/audio/woo-hoo.mp3",0.9,false);
   }
   // Reconcile internal flags with actual audio element state
   _sync(){
@@ -633,7 +633,7 @@ export default function FootballGame(){
     const j=scorer===0?j1:j2;setGm(g.combo[key]>=2?`⚽ ${t("goal")}! ${t("combo")} x${g.combo[key]} ${t("fire")}`:`⚽ ${t("goal")}!`);
     // Goal celebration jump on scorer
     (scorer===0?g.p1:g.p2).celebT=Date.now();
-    if(sndOn){sfx.goal();sfx.crowdRoar();music.goal();vib([50,30,80])}
+    if(sndOn){music.goal();vib([50,30,80])}
     setShake(1);setTimeout(()=>setShake(0),500);
     spawnP(g.ball.x,g.ball.y,j?.primary||"#fff",35);
     if(ns[scorer]>=maxGoals){setTimeout(()=>{if(sndOn){sfx.win();music.whistle();vib([80,40,80,40,120])}stopAudio();music.stopGame();setWinner(scorer);
