@@ -360,6 +360,19 @@ function drawPowerup(x,pu,now){const pulse=1+Math.sin(now*.004)*.15;const r=16*p
 // and kill input focus / typing on Android WebView.
 const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.77,.32,1.01) both",display:"flex",flexDirection:"column",alignItems:"center",width:"100%",padding:"20px"}}>{children}</div>);
 
+// Audio assets supplied by the user (public/audio/*.mp3)
+class Music{
+  constructor(){this.menu=null;this.amb=null;this.muted=false;this.gameTracks=["/audio/soccer-fans-vocals-field-recording.mp3","/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3"]}
+  _make(src,vol,loop){try{const a=new Audio(src);a.loop=!!loop;a.volume=vol;a.preload="auto";return a}catch(e){return null}}
+  setMuted(m){this.muted=!!m;if(m){try{this.menu?.pause()}catch(e){}try{this.amb?.pause()}catch(e){}}}
+  playMenu(){if(this.muted)return;try{this.amb?.pause()}catch(e){}if(!this.menu)this.menu=this._make("/audio/happy-background-tango.mp3",0.4,true);if(!this.menu)return;try{this.menu.play().catch(()=>{})}catch(e){}}
+  stopMenu(){try{this.menu?.pause()}catch(e){}}
+  playGame(){if(this.muted)return;try{this.menu?.pause()}catch(e){}try{this.amb?.pause()}catch(e){}const src=this.gameTracks[Math.floor(Math.random()*this.gameTracks.length)];this.amb=this._make(src,0.45,true);if(!this.amb)return;try{this.amb.play().catch(()=>{})}catch(e){}}
+  stopGame(){try{this.amb?.pause()}catch(e){}}
+  whistle(){if(this.muted)return;const w=this._make("/audio/whistle-blow.mp3",0.7,false);if(!w)return;try{w.play().catch(()=>{})}catch(e){}}
+}
+const music=new Music();
+
 /* ═══════ MAIN ═══════ */
 export default function FootballGame(){
   const cvRef=useRef(null),rafRef=useRef(null),tMap=useRef(new Map());
@@ -529,7 +542,7 @@ export default function FootballGame(){
     if(sndOn){sfx.goal();sfx.crowdRoar();vib([50,30,80])}
     setShake(1);setTimeout(()=>setShake(0),500);
     spawnP(g.ball.x,g.ball.y,j?.primary||"#fff",35);
-    if(ns[scorer]>=maxGoals){setTimeout(()=>{if(sndOn){sfx.win();vib([80,40,80,40,120])}stopAudio();setWinner(scorer);
+    if(ns[scorer]>=maxGoals){setTimeout(()=>{if(sndOn){sfx.win();music.whistle();vib([80,40,80,40,120])}stopAudio();music.stopGame();setWinner(scorer);
       if(mode==="tourney"){
         // New round-robin: update standings for the played match and advance
         const homeIdx=gRef.current.tHomeIdx,awayIdx=gRef.current.tAwayIdx;
@@ -700,11 +713,14 @@ export default function FootballGame(){
   const onMM=useCallback(e=>{const en=tMap.current.get("m");if(!en)return;const p=s2g(e.clientX,e.clientY);const z=en.zone;tMap.current.set("m",{...p,zone:z});if(z==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}else if(z==="p2"&&gRef.current.p2Human){gRef.current.p2T=p;gRef.current.ti.p2=p}},[s2g]);
   const onMU=useCallback(()=>{const en=tMap.current.get("m");tMap.current.delete("m");if(!en)return;if(en.zone==="p1"){gRef.current.p1T=null;gRef.current.ti.p1=null}else if(en.zone==="p2"&&gRef.current.p2Human){gRef.current.p2T=null;gRef.current.ti.p2=null}},[]);
 
-  /* MENU MUSIC */
+  /* MUSIC + AMBIENT (user-supplied mp3s) */
   useEffect(()=>{
-    if(scr==="menu"||scr==="jersey1"||scr==="tourneyIntro"||scr==="online"){
-      if(sndOn){sfx.init();sfx.resume();sfx.startMenuMusic()}
-    }else{sfx.stopMenuMusic()}
+    music.setMuted(!sndOn);
+    if(!sndOn)return;
+    const menuLike=["menu","playerName","jersey1","tourneySetup","tourneyTable","tourneyEnd","leagueIntro","leagueTable","leagueResult","online","tutorial","legal"];
+    if(menuLike.includes(scr)){music.stopGame();music.playMenu()}
+    else if(scr==="play"){music.stopMenu();music.playGame();music.whistle()}
+    else{music.stopMenu();music.stopGame()}
   },[scr,sndOn]);
 
   // Auto-dismiss intro screen after 2.5 s
