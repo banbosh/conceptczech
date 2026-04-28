@@ -664,7 +664,7 @@ export default function FootballGame(){
   
   const aiUp=useCallback(()=>{const g=gRef.current,d=DIFF[curDiff]||DIFF.medium,{ball,p2}=g;
     const eff=g.effects.p2,frozen=eff.freeze&&Date.now()<eff.freeze;
-    const spd=frozen?0.3:((eff.speed&&Date.now()<eff.speed)?1.5:1);
+    const spd=frozen?0.3:((eff.speed&&Date.now()<eff.speed)?1.85:1);
     const ai=aiStateRef.current;
     
     // Stuck detection - check if AI hasn't moved much
@@ -835,7 +835,7 @@ export default function FootballGame(){
     let lk=0;const jj1=j1||JERSEYS[1],jj2=j2||JERSEYS[0];
     function tick(now){const g=gRef.current;
       if(!g.paused){const{ball,p1,p2}=g;const now2=Date.now();
-        const eff1=g.effects.p1,frozen1=eff1.freeze&&now2<eff1.freeze,spd1=frozen1?.3:((eff1.speed&&now2<eff1.speed)?1.6:1);
+        const eff1=g.effects.p1,frozen1=eff1.freeze&&now2<eff1.freeze,spd1=frozen1?.3:((eff1.speed&&now2<eff1.speed)?1.95:1);
         const giant1=eff1.giant&&now2<eff1.giant,mag1=eff1.magnet&&now2<eff1.magnet;
         const giant2=g.effects.p2.giant&&now2<g.effects.p2.giant;
         const pr1=(giant1?PR*1.5:PR),pr2=(giant2?PR*1.5:PR);
@@ -926,12 +926,35 @@ export default function FootballGame(){
         return{vx:dx,vy:dy,phase:pl.phase||0,kickT:pl.kickT||0,kickDx:pl.kickDx||0,kickDy:pl.kickDy||0,celebT:pl.celebT||0,eyeDx,eyeDy,now:tNow};
       }
       const a1=pAnim(g.p1),a2=pAnim(g.p2);
+      // Glowing aura ring underneath the player for any active power-up so the buff is unmistakable
+      function drawAura(px,py,pr,sc,eff,fireOn){
+        const auras=[];
+        if(eff.speed&&now2<eff.speed)auras.push({c:"#ffe066",label:"⚡"});
+        if(eff.giant&&now2<eff.giant)auras.push({c:"#8eff8e",label:"🛡"});
+        if(eff.magnet&&now2<eff.magnet)auras.push({c:"#c4b5fd",label:"🧲"});
+        if(eff.freeze&&now2<eff.freeze)auras.push({c:"#8ef",label:"❄"});
+        if(fireOn)auras.push({c:"#ff6b35",label:"🔥"});
+        if(!auras.length)return;
+        const pulse=1+Math.sin(now2*.008)*.18;
+        const baseR=PR*sc+10;
+        auras.forEach((au,i)=>{
+          const r=(baseR+i*5)*pulse;
+          ctx.save();
+          ctx.shadowColor=au.c;ctx.shadowBlur=22;
+          ctx.strokeStyle=au.c;ctx.lineWidth=3;
+          ctx.globalAlpha=.55;
+          ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);ctx.stroke();
+          ctx.shadowBlur=0;ctx.lineWidth=1.5;ctx.globalAlpha=.9;
+          ctx.beginPath();ctx.arc(px,py,r*.55,0,Math.PI*2);ctx.stroke();
+          ctx.restore();
+        });
+      }
       [{type:"p2",y:g.p2.y},{type:"ball",y:g.ball.y},{type:"p1",y:g.p1.y}].sort((a,b)=>a.y-b.y).forEach(e=>{
         if(e.type==="p1"){
-          if(eff1.freeze&&now2<eff1.freeze){ctx.globalAlpha=.5;ctx.fillStyle="#8ef33";ctx.beginPath();ctx.arc(g.p1.x,g.p1.y,PR*sc1+8,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
+          drawAura(g.p1.x,g.p1.y,PR,sc1,eff1,g.fireShot);
           drawP(ctx,g.p1.x,g.p1.y,jj1,"10",sc1,a1)}
         if(e.type==="p2"){
-          if(eff2.freeze&&now2<eff2.freeze){ctx.globalAlpha=.5;ctx.fillStyle="#8ef33";ctx.beginPath();ctx.arc(g.p2.x,g.p2.y,PR*sc2+8,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
+          drawAura(g.p2.x,g.p2.y,PR,sc2,eff2,false);
           drawP(ctx,g.p2.x,g.p2.y,jj2,"7",sc2,a2)}
         if(e.type==="ball")drawB(ctx,g.ball.x,g.ball.y,g.fireShot)});
       // Particles
