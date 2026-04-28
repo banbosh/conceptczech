@@ -362,7 +362,7 @@ const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.
 
 // Audio assets supplied by the user (public/audio/*.mp3)
 class Music{
-  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.amb=null;this.whistleA=null;this.yay=null;this.woo=null;this.muted=false;this.unlocked=false}
+  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.amb=null;this.whistleA=null;this.yay=null;this.woo=null;this.muted=false;this.unlocked=false;this.mode="none"} // mode: "menu" | "game" | "none"
   _make(src,vol,loop){try{const a=new Audio(src);a.loop=!!loop;a.volume=vol;a.preload="auto";return a}catch(e){return null}}
   init(){
     if(this.menu)return;
@@ -386,24 +386,28 @@ class Music{
   setMuted(m){this.muted=!!m;if(m){[this.menu,this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}})}}
   playMenu(){
     if(this.muted)return;
+    if(this.mode==="menu")return; // already in menu mode -> don't restart
     this.init();
     [this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});
+    this.amb=null;
+    this.mode="menu";
     if(!this.menu)return;
-    if(!this.menu.paused)return; // already playing — don't restart!
     try{this.menu.play().catch(()=>{})}catch(e){}
   }
-  stopMenu(){try{this.menu&&this.menu.pause()}catch(e){}}
+  stopMenu(){if(this.mode==="menu")this.mode="none";try{this.menu&&this.menu.pause()}catch(e){}}
   playGame(){
     if(this.muted)return;
+    if(this.mode==="game")return; // already in game mode
     this.init();
     try{this.menu&&this.menu.pause()}catch(e){}
     [this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});
     const tracks=[this.amb1,this.amb2].filter(Boolean);
     if(!tracks.length)return;
+    this.mode="game";
     this.amb=tracks[Math.floor(Math.random()*tracks.length)];
     try{this.amb.currentTime=0;this.amb.play().catch(()=>{})}catch(e){}
   }
-  stopGame(){[this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});this.amb=null}
+  stopGame(){if(this.mode==="game")this.mode="none";[this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});this.amb=null}
   whistle(){
     if(this.muted)return;
     this.init();
@@ -550,7 +554,7 @@ export default function FootballGame(){
 
   const reset=useCallback(()=>{const g=gRef.current;g.ball={x:W/2,y:H/2,vx:(Math.random()-.5)*3,vy:(Math.random()>.5?1:-1)*4};g.p1={x:W/2,y:H-100,lx:W/2,ly:H-100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p2={x:W/2,y:100,lx:W/2,ly:100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p1T=null;g.p2T=null;g.paused=false;g.parts=[];g.ti={p1:null,p2:null};g.trail=[];g.powerups=[];g.effects={p1:{},p2:{}};g.fireShot=false;g.weatherParts=[];g.p2Human=false;g.p1IsAI=false;g.tHomeIdx=null;g.tAwayIdx=null},[]);
   const fullReset=useCallback(()=>{reset();gRef.current.sc=[0,0];gRef.current.combo={p1:0,p2:0};gRef.current.lastPuSpawn=0;setSc([0,0]);setCombo({p1:0,p2:0})},[reset]);
-  const startG=useCallback(()=>{sfx.stopMenuMusic();if(sndOn){sfx.init();sfx.resume()}setWinner(null);setGm(null);setPuMsg(null);fullReset();setScr("play")},[fullReset,sndOn]);
+  const startG=useCallback(()=>{sfx.stopMenuMusic();if(sndOn){sfx.init();sfx.resume();music.stopMenu();music.playGame();music.whistle()}setWinner(null);setGm(null);setPuMsg(null);fullReset();setScr("play")},[fullReset,sndOn]);
   const stopAudio=useCallback(()=>{},[]);
   const s2g=useCallback((cx,cy)=>{const cv=cvRef.current;if(!cv)return{x:0,y:0};const r=cv.getBoundingClientRect();return{x:(cx-r.left)*(W/r.width),y:(cy-r.top)*(H/r.height)}},[]);
   const spawnP=useCallback((x,y,co,n)=>{const g=gRef.current;for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=1+Math.random()*4;g.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,decay:.02+Math.random()*.03,size:2+Math.random()*3,color:co})}},[]);
@@ -771,14 +775,16 @@ export default function FootballGame(){
   const onMM=useCallback(e=>{const en=tMap.current.get("m");if(!en)return;const p=s2g(e.clientX,e.clientY);const z=en.zone;tMap.current.set("m",{...p,zone:z});if(z==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}else if(z==="p2"&&gRef.current.p2Human){gRef.current.p2T=p;gRef.current.ti.p2=p}},[s2g]);
   const onMU=useCallback(()=>{const en=tMap.current.get("m");tMap.current.delete("m");if(!en)return;if(en.zone==="p1"){gRef.current.p1T=null;gRef.current.ti.p1=null}else if(en.zone==="p2"&&gRef.current.p2Human){gRef.current.p2T=null;gRef.current.ti.p2=null}},[]);
 
-  /* MUSIC + AMBIENT (user-supplied mp3s) */
+  /* MUSIC + AMBIENT (user-supplied mp3s).
+     playGame + whistle are triggered from startG (inside the click handler)
+     so Android's strict autoplay rules don't block them. This effect only
+     handles menu music + cleanup. */
   useEffect(()=>{
     music.setMuted(!sndOn);
     if(!sndOn)return;
     const menuLike=["menu","playerName","jersey1","tourneySetup","tourneyTable","tourneyEnd","leagueIntro","leagueTable","leagueResult","online","tutorial","legal"];
     if(menuLike.includes(scr)){music.stopGame();music.playMenu()}
-    else if(scr==="play"){music.stopMenu();music.playGame();music.whistle()}
-    else{music.stopMenu();music.stopGame()}
+    else if(scr!=="play"){music.stopMenu();music.stopGame()}
   },[scr,sndOn]);
 
   // Auto-dismiss intro screen after 2.5 s
