@@ -397,10 +397,10 @@ class Music{
     if(this.menu)return;
     this.menu=this._make("/audio/happy-background-tango.mp3",0.4,true);
     this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.15,true);
-    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.13,true);
+    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.wav",0.13,true);
     this.whistleA=this._make("/audio/whistle-blow.mp3",0.85,false);
-    this.yay=this._make("/audio/mixkit-cartoon-voice-laugh.mp3",1.0,false);
-    this.woo=this._make("/audio/woo-hoo.mp3",0.9,false);
+    this.yay=this._make("/audio/mixkit-cartoon-voice-laugh.wav",1.0,false);
+    this.woo=this._make("/audio/cartoon-yay.mp3",0.9,false);
   }
   // Reconcile internal flags with actual audio element state
   _sync(){
