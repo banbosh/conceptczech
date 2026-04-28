@@ -424,6 +424,18 @@ class Music{
       if(!a)return;
       try{if(a.paused){const p=a.play();if(p&&p.catch)p.catch(()=>{})}}catch(e){}
     });
+    // Safety-net: every 2s, if we should be playing game music but a track is paused, resume it
+    if(!this._loopWatchdog){
+      this._loopWatchdog=setInterval(()=>{
+        if(this.muted)return;
+        if(this._wantGame){
+          if(this.amb1&&this.amb1.paused){try{this.amb1.play().catch(()=>{})}catch(e){}}
+          if(this.amb2&&this.amb2.paused){try{this.amb2.play().catch(()=>{})}catch(e){}}
+        }else if(this._wantMenu){
+          if(this.menu&&this.menu.paused){try{this.menu.play().catch(()=>{})}catch(e){}}
+        }
+      },2000);
+    }
   }
   stopGame(){this._wantGame=false;this._sync()}
   // Strict-autoplay-safe unlock: muted play() is always permitted, then pause+unmute
