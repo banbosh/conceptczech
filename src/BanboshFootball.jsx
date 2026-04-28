@@ -362,16 +362,59 @@ const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.
 
 // Audio assets supplied by the user (public/audio/*.mp3)
 class Music{
-  constructor(){this.menu=null;this.amb=null;this.muted=false;this.gameTracks=["/audio/soccer-fans-vocals-field-recording.mp3","/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3"]}
+  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.amb=null;this.whistleA=null;this.muted=false;this.unlocked=false}
   _make(src,vol,loop){try{const a=new Audio(src);a.loop=!!loop;a.volume=vol;a.preload="auto";return a}catch(e){return null}}
-  setMuted(m){this.muted=!!m;if(m){try{this.menu?.pause()}catch(e){}try{this.amb?.pause()}catch(e){}}}
-  playMenu(){if(this.muted)return;try{this.amb?.pause()}catch(e){}if(!this.menu)this.menu=this._make("/audio/happy-background-tango.mp3",0.4,true);if(!this.menu)return;try{this.menu.play().catch(()=>{})}catch(e){}}
-  stopMenu(){try{this.menu?.pause()}catch(e){}}
-  playGame(){if(this.muted)return;try{this.menu?.pause()}catch(e){}try{this.amb?.pause()}catch(e){}const src=this.gameTracks[Math.floor(Math.random()*this.gameTracks.length)];this.amb=this._make(src,0.45,true);if(!this.amb)return;try{this.amb.play().catch(()=>{})}catch(e){}}
-  stopGame(){try{this.amb?.pause()}catch(e){}}
-  whistle(){if(this.muted)return;const w=this._make("/audio/whistle-blow.mp3",0.7,false);if(!w)return;try{w.play().catch(()=>{})}catch(e){}}
+  init(){
+    if(this.menu)return;
+    this.menu=this._make("/audio/happy-background-tango.mp3",0.4,true);
+    this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.45,true);
+    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.45,true);
+    this.whistleA=this._make("/audio/whistle-blow.mp3",0.7,false);
+  }
+  // First user gesture -> primes every clip so subsequent .play() calls aren't blocked
+  unlock(){
+    if(this.unlocked)return;
+    this.init();
+    [this.menu,this.amb1,this.amb2,this.whistleA].forEach(a=>{
+      if(!a)return;
+      try{const p=a.play();if(p&&p.then)p.then(()=>{try{a.pause();a.currentTime=0}catch(e){}}).catch(()=>{})}catch(e){}
+    });
+    this.unlocked=true;
+  }
+  setMuted(m){this.muted=!!m;if(m){[this.menu,this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}})}}
+  playMenu(){
+    if(this.muted)return;
+    this.init();
+    [this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});
+    if(!this.menu)return;
+    try{this.menu.play().catch(()=>{})}catch(e){}
+  }
+  stopMenu(){try{this.menu&&this.menu.pause()}catch(e){}}
+  playGame(){
+    if(this.muted)return;
+    this.init();
+    try{this.menu&&this.menu.pause()}catch(e){}
+    [this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});
+    const tracks=[this.amb1,this.amb2].filter(Boolean);
+    if(!tracks.length)return;
+    this.amb=tracks[Math.floor(Math.random()*tracks.length)];
+    try{this.amb.currentTime=0;this.amb.play().catch(()=>{})}catch(e){}
+  }
+  stopGame(){[this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});this.amb=null}
+  whistle(){
+    if(this.muted)return;
+    this.init();
+    if(!this.whistleA)return;
+    try{this.whistleA.currentTime=0;this.whistleA.play().catch(()=>{})}catch(e){}
+  }
 }
 const music=new Music();
+// Auto-unlock all audio on the user's first interaction so play() outside the gesture stack still works
+if(typeof document!=="undefined"){
+  const _unlock=()=>{music.unlock();document.removeEventListener("click",_unlock);document.removeEventListener("touchstart",_unlock)};
+  document.addEventListener("click",_unlock,{once:true});
+  document.addEventListener("touchstart",_unlock,{once:true});
+}
 
 /* ═══════ MAIN ═══════ */
 export default function FootballGame(){
