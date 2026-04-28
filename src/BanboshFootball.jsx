@@ -362,7 +362,7 @@ const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.
 
 // Audio assets supplied by the user (public/audio/*.mp3)
 class Music{
-  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.amb=null;this.whistleA=null;this.muted=false;this.unlocked=false}
+  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.amb=null;this.whistleA=null;this.yay=null;this.woo=null;this.muted=false;this.unlocked=false}
   _make(src,vol,loop){try{const a=new Audio(src);a.loop=!!loop;a.volume=vol;a.preload="auto";return a}catch(e){return null}}
   init(){
     if(this.menu)return;
@@ -370,14 +370,16 @@ class Music{
     this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.45,true);
     this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.45,true);
     this.whistleA=this._make("/audio/whistle-blow.mp3",0.7,false);
+    this.yay=this._make("/audio/cartoon-yay.mp3",0.7,false);
+    this.woo=this._make("/audio/woo-hoo.mp3",0.65,false);
   }
-  // First user gesture -> primes every clip so subsequent .play() calls aren't blocked
+  // Strict-autoplay-safe unlock: muted play() is always permitted, then pause+unmute
   unlock(){
     if(this.unlocked)return;
     this.init();
-    [this.menu,this.amb1,this.amb2,this.whistleA].forEach(a=>{
+    [this.menu,this.amb1,this.amb2,this.whistleA,this.yay,this.woo].forEach(a=>{
       if(!a)return;
-      try{const p=a.play();if(p&&p.then)p.then(()=>{try{a.pause();a.currentTime=0}catch(e){}}).catch(()=>{})}catch(e){}
+      try{a.muted=true;const p=a.play();if(p&&p.then){p.then(()=>{try{a.pause();a.currentTime=0;a.muted=false}catch(e){}}).catch(()=>{try{a.muted=false}catch(e){}})}else{try{a.pause();a.currentTime=0;a.muted=false}catch(e){}}}catch(e){try{a.muted=false}catch(_){}}
     });
     this.unlocked=true;
   }
@@ -387,6 +389,7 @@ class Music{
     this.init();
     [this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});
     if(!this.menu)return;
+    if(!this.menu.paused)return; // already playing — don't restart!
     try{this.menu.play().catch(()=>{})}catch(e){}
   }
   stopMenu(){try{this.menu&&this.menu.pause()}catch(e){}}
@@ -406,6 +409,18 @@ class Music{
     this.init();
     if(!this.whistleA)return;
     try{this.whistleA.currentTime=0;this.whistleA.play().catch(()=>{})}catch(e){}
+  }
+  goal(){
+    if(this.muted)return;
+    this.init();
+    if(!this.yay)return;
+    try{this.yay.currentTime=0;this.yay.play().catch(()=>{})}catch(e){}
+  }
+  powerup(){
+    if(this.muted)return;
+    this.init();
+    if(!this.woo)return;
+    try{this.woo.currentTime=0;this.woo.play().catch(()=>{})}catch(e){}
   }
 }
 const music=new Music();
@@ -582,7 +597,7 @@ export default function FootballGame(){
     const j=scorer===0?j1:j2;setGm(g.combo[key]>=2?`⚽ ${t("goal")}! ${t("combo")} x${g.combo[key]} ${t("fire")}`:`⚽ ${t("goal")}!`);
     // Goal celebration jump on scorer
     (scorer===0?g.p1:g.p2).celebT=Date.now();
-    if(sndOn){sfx.goal();sfx.crowdRoar();vib([50,30,80])}
+    if(sndOn){sfx.goal();music.goal();sfx.crowdRoar();vib([50,30,80])}
     setShake(1);setTimeout(()=>setShake(0),500);
     spawnP(g.ball.x,g.ball.y,j?.primary||"#fff",35);
     if(ns[scorer]>=maxGoals){setTimeout(()=>{if(sndOn){sfx.win();music.whistle();vib([80,40,80,40,120])}stopAudio();music.stopGame();setWinner(scorer);
@@ -815,7 +830,7 @@ export default function FootballGame(){
           const dx1=p1.x-pu.x,dy1=p1.y-pu.y;
           if(Math.sqrt(dx1*dx1+dy1*dy1)<30){pu.taken=true;
             if(pu.type.id==="fire"){g.fireShot=true}else{g.effects.p1[pu.type.id]=now2+pu.type.dur}
-            if(sndOn)sfx.powerup();spawnP(pu.x,pu.y,pu.type.color,10);
+            if(sndOn){sfx.powerup();music.powerup()}spawnP(pu.x,pu.y,pu.type.color,10);
             setPuMsg(pu.type.desc[lang]||pu.type.desc.en);setTimeout(()=>setPuMsg(null),1200);return false}
           return true});
       }

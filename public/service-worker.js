@@ -1,4 +1,4 @@
-const CACHE_NAME = 'banbosh-football-v1.0.42';
+const CACHE_NAME = 'banbosh-football-v1.0.43';
 const urlsToCache = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
