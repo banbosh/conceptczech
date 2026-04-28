@@ -201,7 +201,7 @@ class SFX{
     this.menuGain=null;this.menuMusic=null}
   
   // Kick ball - KEEP (good)
-  kick(){this._p(c=>{const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type="triangle";o.frequency.setValueAtTime(260,t);o.frequency.exponentialRampToValueAtTime(70,t+.09);g.gain.setValueAtTime(.65,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.15)})}
+  kick(){this._p(c=>{const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type="triangle";o.frequency.setValueAtTime(280,t);o.frequency.exponentialRampToValueAtTime(70,t+.10);g.gain.setValueAtTime(.95,t);g.gain.exponentialRampToValueAtTime(.001,t+.16);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.18)})}
   
   // Wall - soft thump
   wall(){this._p(c=>{const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.setValueAtTime(100,t);o.frequency.exponentialRampToValueAtTime(50,t+.04);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.05);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.06)})}
@@ -633,7 +633,7 @@ export default function FootballGame(){
     const j=scorer===0?j1:j2;setGm(g.combo[key]>=2?`⚽ ${t("goal")}! ${t("combo")} x${g.combo[key]} ${t("fire")}`:`⚽ ${t("goal")}!`);
     // Goal celebration jump on scorer
     (scorer===0?g.p1:g.p2).celebT=Date.now();
-    if(sndOn){music.goal();vib([50,30,80])}
+    if(sndOn){sfx.goal();sfx.crowdRoar();music.goal();vib([50,30,80])}
     setShake(1);setTimeout(()=>setShake(0),500);
     spawnP(g.ball.x,g.ball.y,j?.primary||"#fff",35);
     if(ns[scorer]>=maxGoals){setTimeout(()=>{if(sndOn){sfx.win();music.whistle();vib([80,40,80,40,120])}stopAudio();music.stopGame();setWinner(scorer);
