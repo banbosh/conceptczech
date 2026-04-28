@@ -976,9 +976,9 @@ export default function FootballGame(){
 
   // Player name screen - special container without touch blocking
   if(scr==="playerName"){
-    return(<div style={{width:"100vw",minHeight:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s",padding:"16px 16px 80px"}}><style>{css}</style>
+    return(<div style={{width:"100vw",minHeight:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:cc.bg,fontFamily:"'Inter',Arial,sans-serif",overflow:"auto",position:"relative",color:cc.txt,transition:"background 0.33s,color 0.33s",padding:"16px 16px 24px"}}><style>{css}</style>
     <Fade><TopBar/><BackBtn to="menu"/>
-    <div style={{fontSize:42,marginTop:20,marginBottom:8}}>👤</div>
+    <div style={{fontSize:42,marginTop:8,marginBottom:8}}>👤</div>
     <h2 style={{...titSm,marginBottom:18}}>{t("enterName")}</h2>
     <div style={{width:"100%",maxWidth:360,display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
       <input
