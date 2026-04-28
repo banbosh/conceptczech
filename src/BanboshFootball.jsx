@@ -353,7 +353,36 @@ function drawB(x,bx,by,fire){
   }
 }
 function rr(x,a,b,cc,d,r){x.beginPath();x.moveTo(a+r,b);x.lineTo(a+cc-r,b);x.quadraticCurveTo(a+cc,b,a+cc,b+r);x.lineTo(a+cc,b+d-r);x.quadraticCurveTo(a+cc,b+d,a+cc-r,b+d);x.lineTo(a+r,b+d);x.quadraticCurveTo(a,b+d,a,b+d-r);x.lineTo(a,b+r);x.quadraticCurveTo(a,b,a+r,b);x.closePath()}
-function drawPowerup(x,pu,now){const pulse=1+Math.sin(now*.004)*.15;const r=16*pulse;x.save();x.shadowColor=pu.type.color;x.shadowBlur=12;x.fillStyle=pu.type.color+"40";x.beginPath();x.arc(pu.x,pu.y,r,0,Math.PI*2);x.fill();x.shadowBlur=0;x.font=`${18*pulse}px sans-serif`;x.textAlign="center";x.textBaseline="middle";x.fillText(pu.type.emoji,pu.x,pu.y);x.restore()}
+function drawPowerup(x,pu,now){
+  const pulse=1+Math.sin(now*.005)*.22;
+  const r=22*pulse;
+  x.save();
+  // Outer aura (big soft halo)
+  x.shadowColor=pu.type.color;x.shadowBlur=24;
+  x.fillStyle=pu.type.color+"55";
+  x.beginPath();x.arc(pu.x,pu.y,r*1.2,0,Math.PI*2);x.fill();
+  // Inner disc
+  x.shadowBlur=10;
+  x.fillStyle=pu.type.color+"cc";
+  x.beginPath();x.arc(pu.x,pu.y,r*.85,0,Math.PI*2);x.fill();
+  // White rim
+  x.shadowBlur=0;
+  x.strokeStyle="rgba(255,255,255,0.85)";x.lineWidth=2;
+  x.beginPath();x.arc(pu.x,pu.y,r*.85,0,Math.PI*2);x.stroke();
+  // Rotating sparkle ring
+  const t=now*.003;
+  for(let i=0;i<6;i++){
+    const a=t+i*Math.PI/3;
+    const sx=pu.x+Math.cos(a)*r*1.05,sy=pu.y+Math.sin(a)*r*1.05;
+    x.fillStyle="rgba(255,255,255,0.85)";
+    x.beginPath();x.arc(sx,sy,1.6,0,Math.PI*2);x.fill();
+  }
+  // Emoji icon, larger
+  x.font=`${26*pulse}px sans-serif`;
+  x.textAlign="center";x.textBaseline="middle";
+  x.fillText(pu.type.emoji,pu.x,pu.y);
+  x.restore();
+}
 
 // Module-level Fade so React keeps the same component identity across renders.
 // Defining it inside the parent component would unmount its children every render
@@ -370,7 +399,7 @@ class Music{
     this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.35,true);
     this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.32,true);
     this.whistleA=this._make("/audio/whistle-blow.mp3",0.7,false);
-    this.yay=this._make("/audio/cartoon-yay.mp3",0.7,false);
+    this.yay=this._make("/audio/mixkit-cartoon-voice-laugh.mp3",0.75,false);
     this.woo=this._make("/audio/woo-hoo.mp3",0.65,false);
   }
   // Reconcile internal flags with actual audio element state
@@ -385,7 +414,17 @@ class Music{
   setMuted(m){this.muted=!!m;this._sync()}
   playMenu(){this._wantMenu=true;this._wantGame=false;this._sync()}
   stopMenu(){this._wantMenu=false;this._sync()}
-  playGame(){this._wantGame=true;this._wantMenu=false;this._sync()}
+  playGame(){
+    this._wantGame=true;this._wantMenu=false;
+    this.init();
+    if(this.muted)return;
+    // Explicit play inside the calling gesture for both ambient tracks (don't rely on reconciler timing)
+    try{this.menu&&this.menu.pause()}catch(e){}
+    [this.amb1,this.amb2].forEach(a=>{
+      if(!a)return;
+      try{if(a.paused){const p=a.play();if(p&&p.catch)p.catch(()=>{})}}catch(e){}
+    });
+  }
   stopGame(){this._wantGame=false;this._sync()}
   // Strict-autoplay-safe unlock: muted play() is always permitted, then pause+unmute
   unlock(){
@@ -594,7 +633,7 @@ export default function FootballGame(){
     const j=scorer===0?j1:j2;setGm(g.combo[key]>=2?`⚽ ${t("goal")}! ${t("combo")} x${g.combo[key]} ${t("fire")}`:`⚽ ${t("goal")}!`);
     // Goal celebration jump on scorer
     (scorer===0?g.p1:g.p2).celebT=Date.now();
-    if(sndOn){sfx.goal();music.goal();sfx.crowdRoar();vib([50,30,80])}
+    if(sndOn){music.goal();vib([50,30,80])}
     setShake(1);setTimeout(()=>setShake(0),500);
     spawnP(g.ball.x,g.ball.y,j?.primary||"#fff",35);
     if(ns[scorer]>=maxGoals){setTimeout(()=>{if(sndOn){sfx.win();music.whistle();vib([80,40,80,40,120])}stopAudio();music.stopGame();setWinner(scorer);
@@ -754,7 +793,10 @@ export default function FootballGame(){
       const pdx=p2.x-pu.x,pdy=p2.y-pu.y;
       if(Math.sqrt(pdx*pdx+pdy*pdy)<35){
         pu.taken=true;
-        g.effects.p2[pu.type.id]=Date.now()+pu.type.dur;
+        // freeze always hits the OTHER player; everything else buffs the picker
+        if(pu.type.id==="freeze")g.effects.p1[pu.type.id]=Date.now()+pu.type.dur;
+        else if(pu.type.id==="fire")g.aiFireShot=true;
+        else g.effects.p2[pu.type.id]=Date.now()+pu.type.dur;
       }
     });
   },[curDiff]);
@@ -828,7 +870,10 @@ export default function FootballGame(){
           // Player pickup
           const dx1=p1.x-pu.x,dy1=p1.y-pu.y;
           if(Math.sqrt(dx1*dx1+dy1*dy1)<30){pu.taken=true;
-            if(pu.type.id==="fire"){g.fireShot=true}else{g.effects.p1[pu.type.id]=now2+pu.type.dur}
+            // freeze always hits the OPPONENT; everything else buffs the picker
+            if(pu.type.id==="freeze"){g.effects.p2[pu.type.id]=now2+pu.type.dur}
+            else if(pu.type.id==="fire"){g.fireShot=true}
+            else{g.effects.p1[pu.type.id]=now2+pu.type.dur}
             if(sndOn){sfx.powerup();music.powerup()}spawnP(pu.x,pu.y,pu.type.color,10);
             setPuMsg(pu.type.desc[lang]||pu.type.desc.en);setTimeout(()=>setPuMsg(null),1200);return false}
           return true});
