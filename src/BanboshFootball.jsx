@@ -201,7 +201,7 @@ class SFX{
     this.menuGain=null;this.menuMusic=null}
   
   // Kick ball - KEEP (good)
-  kick(){this._p(c=>{const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type="triangle";o.frequency.setValueAtTime(220,t);o.frequency.exponentialRampToValueAtTime(80,t+.08);g.gain.setValueAtTime(.35,t);g.gain.exponentialRampToValueAtTime(.001,t+.12);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.12)})}
+  kick(){this._p(c=>{const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type="triangle";o.frequency.setValueAtTime(260,t);o.frequency.exponentialRampToValueAtTime(70,t+.09);g.gain.setValueAtTime(.65,t);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.15)})}
   
   // Wall - soft thump
   wall(){this._p(c=>{const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.setValueAtTime(100,t);o.frequency.exponentialRampToValueAtTime(50,t+.04);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.05);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.06)})}
@@ -354,31 +354,31 @@ function drawB(x,bx,by,fire){
 }
 function rr(x,a,b,cc,d,r){x.beginPath();x.moveTo(a+r,b);x.lineTo(a+cc-r,b);x.quadraticCurveTo(a+cc,b,a+cc,b+r);x.lineTo(a+cc,b+d-r);x.quadraticCurveTo(a+cc,b+d,a+cc-r,b+d);x.lineTo(a+r,b+d);x.quadraticCurveTo(a,b+d,a,b+d-r);x.lineTo(a,b+r);x.quadraticCurveTo(a,b,a+r,b);x.closePath()}
 function drawPowerup(x,pu,now){
-  const pulse=1+Math.sin(now*.005)*.22;
-  const r=22*pulse;
+  const pulse=1+Math.sin(now*.005)*.12;
+  const r=18*pulse;
   x.save();
-  // Outer aura (big soft halo)
-  x.shadowColor=pu.type.color;x.shadowBlur=24;
-  x.fillStyle=pu.type.color+"55";
-  x.beginPath();x.arc(pu.x,pu.y,r*1.2,0,Math.PI*2);x.fill();
+  // Outer aura — gentler
+  x.shadowColor=pu.type.color;x.shadowBlur=14;
+  x.fillStyle=pu.type.color+"40";
+  x.beginPath();x.arc(pu.x,pu.y,r*1.1,0,Math.PI*2);x.fill();
   // Inner disc
-  x.shadowBlur=10;
-  x.fillStyle=pu.type.color+"cc";
+  x.shadowBlur=6;
+  x.fillStyle=pu.type.color+"a0";
   x.beginPath();x.arc(pu.x,pu.y,r*.85,0,Math.PI*2);x.fill();
-  // White rim
+  // Rim
   x.shadowBlur=0;
-  x.strokeStyle="rgba(255,255,255,0.85)";x.lineWidth=2;
+  x.strokeStyle="rgba(255,255,255,0.6)";x.lineWidth=1.4;
   x.beginPath();x.arc(pu.x,pu.y,r*.85,0,Math.PI*2);x.stroke();
-  // Rotating sparkle ring
+  // 4 small orbiting sparkles
   const t=now*.003;
-  for(let i=0;i<6;i++){
-    const a=t+i*Math.PI/3;
-    const sx=pu.x+Math.cos(a)*r*1.05,sy=pu.y+Math.sin(a)*r*1.05;
-    x.fillStyle="rgba(255,255,255,0.85)";
-    x.beginPath();x.arc(sx,sy,1.6,0,Math.PI*2);x.fill();
+  for(let i=0;i<4;i++){
+    const a=t+i*Math.PI/2;
+    const sx=pu.x+Math.cos(a)*r*1.0,sy=pu.y+Math.sin(a)*r*1.0;
+    x.fillStyle="rgba(255,255,255,0.7)";
+    x.beginPath();x.arc(sx,sy,1.2,0,Math.PI*2);x.fill();
   }
-  // Emoji icon, larger
-  x.font=`${26*pulse}px sans-serif`;
+  // Emoji
+  x.font=`${22*pulse}px sans-serif`;
   x.textAlign="center";x.textBaseline="middle";
   x.fillText(pu.type.emoji,pu.x,pu.y);
   x.restore();
@@ -396,11 +396,11 @@ class Music{
   init(){
     if(this.menu)return;
     this.menu=this._make("/audio/happy-background-tango.mp3",0.4,true);
-    this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.35,true);
-    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.32,true);
-    this.whistleA=this._make("/audio/whistle-blow.mp3",0.7,false);
-    this.yay=this._make("/audio/mixkit-cartoon-voice-laugh.mp3",0.75,false);
-    this.woo=this._make("/audio/woo-hoo.mp3",0.65,false);
+    this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.20,true);
+    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.18,true);
+    this.whistleA=this._make("/audio/whistle-blow.mp3",0.85,false);
+    this.yay=this._make("/audio/mixkit-cartoon-voice-laugh.mp3",1.0,false);
+    this.woo=this._make("/audio/woo-hoo.mp3",1.0,false);
   }
   // Reconcile internal flags with actual audio element state
   _sync(){
