@@ -436,6 +436,7 @@ export default function FootballGame(){
   const[theme,setTheme]=useState("dark");
   const[mode,setMode]=useState(null);
   const[diff,setDiff]=useState("medium");
+  const[aiWeather,setAiWeather]=useState("clear"); // clear | rain | snow | random
   const[maxGoals,setMaxGoals]=useState(5);
   const[j1,setJ1]=useState(null);const[j2,setJ2]=useState(null);
   const[sel,setSel]=useState(null);
@@ -1145,12 +1146,23 @@ export default function FootballGame(){
         <div style={{display:"flex",gap:8}}>{ds.map(d=>(<button key={d.key} onClick={()=>{sfx.click();setDiff(d.key)}} style={optBtn(diff===d.key)}>{d.em} {t(d.key)}</button>))}</div>
         <div style={{fontWeight:700,fontSize:"0.95em",marginTop:10,marginBottom:4}}>{t("goals")}</div>
         <div style={{display:"flex",gap:8}}>{[3,5,7].map(n=>(<button key={n} onClick={()=>{sfx.click();setMaxGoals(n)}} style={optBtn(maxGoals===n,{minWidth:52})}>{n}</button>))}</div>
+        <div style={{fontWeight:700,fontSize:"0.95em",marginTop:10,marginBottom:4}}>Weather</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}}>
+          {[{k:"clear",em:"☀️",label:"Clear"},{k:"rain",em:"🌧️",label:"Rain"},{k:"snow",em:"❄️",label:"Snow"},{k:"random",em:"🎲",label:"Random"}].map(w=>(
+            <button key={w.k} onClick={()=>{sfx.click();setAiWeather(w.k)}} style={optBtn(aiWeather===w.k,{minWidth:70})}>{w.em} {w.label}</button>
+          ))}
+        </div>
       </>}
     </div>
     {sel&&<button onClick={()=>{sfx.click();setJ1(sel);const o=JERSEYS.filter(x=>x.id!==sel.id);setJ2(o[Math.floor(Math.random()*o.length)]);
       if(mode==="tourney"){setTRound(0);setTResult(null);setScr("tourneySetup")}
       else if(mode==="league"){setScr("leagueIntro")}
-      else{startG()}
+      else{
+        // AI mode: apply chosen weather
+        const w=aiWeather==="random"?(Math.random()<.55?"clear":Math.random()<.8?"rain":"snow"):aiWeather;
+        gRef.current.weather=w;gRef.current.weatherParts=[];
+        startG();
+      }
     }} style={{...gbtn(),animation:"fadeInUp .25s ease"}}>{mode==="tourney"||mode==="league"?t("next"):t("start")} →</button>}
   </Fade></div>)}
 
