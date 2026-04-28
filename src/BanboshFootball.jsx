@@ -362,26 +362,32 @@ const Fade=({children})=>(<div style={{animation:"fadeInUp 1s cubic-bezier(.45,.
 
 // Audio assets supplied by the user (public/audio/*.mp3)
 class Music{
-  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.amb=null;this.whistleA=null;this.yay=null;this.woo=null;this.muted=false;this.unlocked=false;this.mode="none"} // mode: "menu" | "game" | "none"
+  constructor(){this.menu=null;this.amb1=null;this.amb2=null;this.whistleA=null;this.yay=null;this.woo=null;this.muted=false;this.unlocked=false;this.mode="none"} // mode: "menu" | "game" | "none"
   _make(src,vol,loop){try{const a=new Audio(src);a.loop=!!loop;a.volume=vol;a.preload="auto";return a}catch(e){return null}}
   init(){
     if(this.menu)return;
     this.menu=this._make("/audio/happy-background-tango.mp3",0.4,true);
-    this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.45,true);
-    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.45,true);
+    // Both ambient tracks layer at lower volume (combined atmosphere)
+    this.amb1=this._make("/audio/soccer-fans-vocals-field-recording.mp3",0.35,true);
+    this.amb2=this._make("/audio/mixkit-stadium-chaotic-loud-applause-drums-and-chants.mp3",0.32,true);
     this.whistleA=this._make("/audio/whistle-blow.mp3",0.7,false);
     this.yay=this._make("/audio/cartoon-yay.mp3",0.7,false);
     this.woo=this._make("/audio/woo-hoo.mp3",0.65,false);
   }
-  // Strict-autoplay-safe unlock: muted play() is always permitted, then pause+unmute
+  // First user gesture: prime SFX clips muted. Menu/ambient are NOT muted-paused
+  // to avoid silencing music that's already trying to play.
   unlock(){
     if(this.unlocked)return;
     this.init();
-    [this.menu,this.amb1,this.amb2,this.whistleA,this.yay,this.woo].forEach(a=>{
-      if(!a)return;
-      try{a.muted=true;const p=a.play();if(p&&p.then){p.then(()=>{try{a.pause();a.currentTime=0;a.muted=false}catch(e){}}).catch(()=>{try{a.muted=false}catch(e){}})}else{try{a.pause();a.currentTime=0;a.muted=false}catch(e){}}}catch(e){try{a.muted=false}catch(_){}}
-    });
     this.unlocked=true;
+    [this.whistleA,this.yay,this.woo,this.amb1,this.amb2].forEach(a=>{
+      if(!a)return;
+      try{a.muted=true;const p=a.play();if(p&&p.then){p.then(()=>{try{a.pause();a.currentTime=0;a.muted=false}catch(e){}}).catch(()=>{try{a.muted=false}catch(e){}})}}catch(e){try{a.muted=false}catch(_){}}
+    });
+    // We're inside a real user gesture here; if menu mode is active, kick the menu music now (full-volume play permitted in gesture)
+    if(this.mode==="menu"&&this.menu){
+      try{this.menu.play().catch(()=>{})}catch(e){}
+    }
   }
   setMuted(m){this.muted=!!m;if(m){[this.menu,this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}})}}
   playMenu(){
@@ -389,25 +395,24 @@ class Music{
     if(this.mode==="menu")return; // already in menu mode -> don't restart
     this.init();
     [this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});
-    this.amb=null;
     this.mode="menu";
     if(!this.menu)return;
     try{this.menu.play().catch(()=>{})}catch(e){}
   }
   stopMenu(){if(this.mode==="menu")this.mode="none";try{this.menu&&this.menu.pause()}catch(e){}}
+  // Both ambient tracks play simultaneously for a richer stadium atmosphere
   playGame(){
     if(this.muted)return;
-    if(this.mode==="game")return; // already in game mode
+    if(this.mode==="game")return;
     this.init();
     try{this.menu&&this.menu.pause()}catch(e){}
-    [this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});
-    const tracks=[this.amb1,this.amb2].filter(Boolean);
-    if(!tracks.length)return;
     this.mode="game";
-    this.amb=tracks[Math.floor(Math.random()*tracks.length)];
-    try{this.amb.currentTime=0;this.amb.play().catch(()=>{})}catch(e){}
+    [this.amb1,this.amb2].forEach(a=>{
+      if(!a)return;
+      try{a.currentTime=0;a.play().catch(()=>{})}catch(e){}
+    });
   }
-  stopGame(){if(this.mode==="game")this.mode="none";[this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}});this.amb=null}
+  stopGame(){if(this.mode==="game")this.mode="none";[this.amb1,this.amb2].forEach(a=>{try{a&&a.pause()}catch(e){}})}
   whistle(){
     if(this.muted)return;
     this.init();
