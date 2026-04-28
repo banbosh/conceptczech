@@ -378,6 +378,13 @@ export default function FootballGame(){
   const[sndOn,setSndOn]=useState(true);
   const[roomCode,setRoomCode]=useState("");const[roomIn,setRoomIn]=useState("");
   const[tRound,setTRound]=useState(0);const[tResult,setTResult]=useState(null);
+  // New round-robin tournament state
+  const[tSize,setTSize]=useState(4); // 4 / 6 / 8
+  const[tDiff,setTDiff]=useState("medium"); // easy / medium / hard
+  const[tParticipants,setTParticipants]=useState([]); // [{name,type,jerseyId}]
+  const[tSchedule,setTSchedule]=useState([]); // [[i,j], ...]
+  const[tStandings,setTStandings]=useState([]); // [{w,d,l,gf,ga,pts}]
+  const[tCurMatch,setTCurMatch]=useState({home:null,away:null});
   const[otPlayers,setOtPlayers]=useState(4);const[otScreen,setOtScreen]=useState(null);
   const[showPause,setShowPause]=useState(false);
   const[combo,setCombo]=useState({p1:0,p2:0});
@@ -402,18 +409,38 @@ export default function FootballGame(){
   const[leagueOpponent,setLeagueOpponent]=useState(null);
   const[leagueResult,setLeagueResult]=useState(null); // "promoted","relegated","stay","champion"
 
-  // Persist tournament progress between sessions
+  // Persist tournament progress between sessions (new round-robin format)
   useEffect(()=>{
-    if(mode==="tourney"&&tRound>0&&tRound<3&&j1)saveProgress("bf_tourney",{tRound,j1Id:j1.id});
-  },[mode,tRound,j1]);
+    if(mode==="tourney"&&tParticipants.length>0&&tSchedule.length>0&&tRound>0&&tRound<tSchedule.length){
+      saveProgress("bf_tourney",{tSize,tDiff,tParticipants,tSchedule,tStandings,tRound});
+    }
+  },[mode,tSize,tDiff,tParticipants,tSchedule,tStandings,tRound]);
   // Persist league progress between sessions
   useEffect(()=>{
     if(mode==="league"&&leagueMatchday>0&&leagueMatchday<9&&j1&&leagueTable.length)
       saveProgress("bf_league",{leagueDiv,leagueTable,leagueMatchday,j1Id:j1.id});
   },[mode,leagueDiv,leagueTable,leagueMatchday,j1]);
   // Clear saved progress when tournament/league ends
-  useEffect(()=>{if(scr==="tourneyResult")clearProgress("bf_tourney")},[scr]);
+  useEffect(()=>{if(scr==="tourneyResult"||scr==="tourneyEnd")clearProgress("bf_tourney")},[scr]);
   useEffect(()=>{if(scr==="leagueResult")clearProgress("bf_league")},[scr]);
+
+  // Tournament helpers — round-robin schedule + standings init
+  const aiNames=["Robotko","Cyber","Mecha","Logic","Neural","Pixel","Crank"];
+  const generateSchedule=useCallback((n)=>{
+    const pairs=[];
+    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)pairs.push([i,j]);
+    for(let k=pairs.length-1;k>0;k--){const r=Math.floor(Math.random()*(k+1));[pairs[k],pairs[r]]=[pairs[r],pairs[k]]}
+    return pairs;
+  },[]);
+  const blankStandings=useCallback((n)=>Array.from({length:n},()=>({w:0,d:0,l:0,gf:0,ga:0,pts:0})),[]);
+  // Auto-simulate AI vs AI match using a mild Poisson-ish RNG
+  const simAIMatch=useCallback((diffI,diffJ)=>{
+    // Difficulty index: 0 easy, 1 medium, 2 hard (just used as base scoring rate)
+    const base={easy:1.4,medium:2.1,hard:2.8};
+    const sa=Math.round(Math.max(0,base[tDiff]+((diffI?.luck||0)-(diffJ?.luck||0))+(Math.random()-Math.random())*1.5));
+    const sb=Math.round(Math.max(0,base[tDiff]-((diffI?.luck||0)-(diffJ?.luck||0))+(Math.random()-Math.random())*1.5));
+    return[Math.min(sa,7),Math.min(sb,7)];
+  },[tDiff]);
 
   const cc=TH[theme];
   const t=useCallback(k=>TX[lang]?.[k]||TX.en[k]||k,[lang]);
@@ -450,7 +477,7 @@ export default function FootballGame(){
     p1T:null,p2T:null,sc:[0,0],paused:false,parts:[],ti:{p1:null,p2:null},
     trail:[],powerups:[],effects:{p1:{},p2:{}},lastPuSpawn:0,combo:{p1:0,p2:0},fireShot:false,weather:"clear",weatherParts:[]});
 
-  const reset=useCallback(()=>{const g=gRef.current;g.ball={x:W/2,y:H/2,vx:(Math.random()-.5)*3,vy:(Math.random()>.5?1:-1)*4};g.p1={x:W/2,y:H-100,lx:W/2,ly:H-100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p2={x:W/2,y:100,lx:W/2,ly:100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p1T=null;g.p2T=null;g.paused=false;g.parts=[];g.ti={p1:null,p2:null};g.trail=[];g.powerups=[];g.effects={p1:{},p2:{}};g.fireShot=false;g.weatherParts=[]},[]);
+  const reset=useCallback(()=>{const g=gRef.current;g.ball={x:W/2,y:H/2,vx:(Math.random()-.5)*3,vy:(Math.random()>.5?1:-1)*4};g.p1={x:W/2,y:H-100,lx:W/2,ly:H-100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p2={x:W/2,y:100,lx:W/2,ly:100,phase:0,kickT:0,kickDx:0,kickDy:0,celebT:0};g.p1T=null;g.p2T=null;g.paused=false;g.parts=[];g.ti={p1:null,p2:null};g.trail=[];g.powerups=[];g.effects={p1:{},p2:{}};g.fireShot=false;g.weatherParts=[];g.p2Human=false;g.p1IsAI=false;g.tHomeIdx=null;g.tAwayIdx=null},[]);
   const fullReset=useCallback(()=>{reset();gRef.current.sc=[0,0];gRef.current.combo={p1:0,p2:0};gRef.current.lastPuSpawn=0;setSc([0,0]);setCombo({p1:0,p2:0})},[reset]);
   const startG=useCallback(()=>{sfx.stopMenuMusic();if(sndOn){sfx.init();sfx.resume()}setWinner(null);setGm(null);setPuMsg(null);fullReset();setScr("play")},[fullReset,sndOn]);
   const stopAudio=useCallback(()=>{},[]);
@@ -503,7 +530,21 @@ export default function FootballGame(){
     setShake(1);setTimeout(()=>setShake(0),500);
     spawnP(g.ball.x,g.ball.y,j?.primary||"#fff",35);
     if(ns[scorer]>=maxGoals){setTimeout(()=>{if(sndOn){sfx.win();vib([80,40,80,40,120])}stopAudio();setWinner(scorer);
-      if(mode==="tourney"){if(scorer===0){if(tRound>=2){setTResult("win");setScr("tourneyResult")}else{setTResult(null);setScr("tourneyNext")}}else{setTResult("lose");setScr("tourneyResult")}}
+      if(mode==="tourney"){
+        // New round-robin: update standings for the played match and advance
+        const homeIdx=gRef.current.tHomeIdx,awayIdx=gRef.current.tAwayIdx;
+        const sa=ns[0],sb=ns[1];
+        if(homeIdx!=null&&awayIdx!=null){
+          setTStandings(prev=>prev.map((row,i)=>{
+            if(i===homeIdx)return{...row,gf:row.gf+sa,ga:row.ga+sb,w:row.w+(sa>sb?1:0),d:row.d+(sa===sb?1:0),l:row.l+(sa<sb?1:0),pts:row.pts+(sa>sb?3:sa===sb?1:0)};
+            if(i===awayIdx)return{...row,gf:row.gf+sb,ga:row.ga+sa,w:row.w+(sb>sa?1:0),d:row.d+(sa===sb?1:0),l:row.l+(sb<sa?1:0),pts:row.pts+(sb>sa?3:sa===sb?1:0)};
+            return row;
+          }));
+        }
+        gRef.current.tHomeIdx=null;gRef.current.tAwayIdx=null;gRef.current.p2Human=false;gRef.current.p1IsAI=false;
+        setTRound(r=>r+1);
+        setScr("tourneyTable");
+      }
       else if(mode==="league"){
         handleLeagueMatchEnd(scorer===0,ns[0],ns[1]);
         setScr("leagueTable");
@@ -651,12 +692,13 @@ export default function FootballGame(){
   },[curDiff]);
 
   /* Touch/Mouse */
-  const onTS=useCallback(e=>{e.preventDefault();if(sndOn){sfx.init();sfx.resume()}for(const tc of e.changedTouches){const p=s2g(tc.clientX,tc.clientY);const z=p.y>H/2?"p1":"p2";tMap.current.set(tc.identifier,{...p,zone:z});if(z==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}}},[s2g,sndOn]);
-  const onTM=useCallback(e=>{e.preventDefault();for(const tc of e.changedTouches){const p=s2g(tc.clientX,tc.clientY);const o=tMap.current.get(tc.identifier);if(!o)continue;tMap.current.set(tc.identifier,{...p,zone:o.zone});if(o.zone==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}}},[s2g]);
-  const onTE=useCallback(e=>{e.preventDefault();for(const tc of e.changedTouches){const o=tMap.current.get(tc.identifier);tMap.current.delete(tc.identifier);if(!o)continue;if(o.zone==="p1"){gRef.current.p1T=null;gRef.current.ti.p1=null}}},[]);
-  const onMD=useCallback(e=>{if(sndOn){sfx.init();sfx.resume()}const p=s2g(e.clientX,e.clientY);tMap.current.set("m",{...p,zone:"p1"});gRef.current.p1T=p;gRef.current.ti.p1=p},[s2g,sndOn]);
-  const onMM=useCallback(e=>{const en=tMap.current.get("m");if(!en)return;const p=s2g(e.clientX,e.clientY);tMap.current.set("m",{...p,zone:"p1"});gRef.current.p1T=p;gRef.current.ti.p1=p},[s2g]);
-  const onMU=useCallback(()=>{tMap.current.delete("m");gRef.current.p1T=null;gRef.current.ti.p1=null},[]);
+  // Top half (p2) touch zone is enabled only when the away player is human (pass-and-play tournament friend)
+  const onTS=useCallback(e=>{e.preventDefault();if(sndOn){sfx.init();sfx.resume()}for(const tc of e.changedTouches){const p=s2g(tc.clientX,tc.clientY);const z=p.y>H/2?"p1":"p2";tMap.current.set(tc.identifier,{...p,zone:z});if(z==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}else if(z==="p2"&&gRef.current.p2Human){gRef.current.p2T=p;gRef.current.ti.p2=p}}},[s2g,sndOn]);
+  const onTM=useCallback(e=>{e.preventDefault();for(const tc of e.changedTouches){const p=s2g(tc.clientX,tc.clientY);const o=tMap.current.get(tc.identifier);if(!o)continue;tMap.current.set(tc.identifier,{...p,zone:o.zone});if(o.zone==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}else if(o.zone==="p2"&&gRef.current.p2Human){gRef.current.p2T=p;gRef.current.ti.p2=p}}},[s2g]);
+  const onTE=useCallback(e=>{e.preventDefault();for(const tc of e.changedTouches){const o=tMap.current.get(tc.identifier);tMap.current.delete(tc.identifier);if(!o)continue;if(o.zone==="p1"){gRef.current.p1T=null;gRef.current.ti.p1=null}else if(o.zone==="p2"&&gRef.current.p2Human){gRef.current.p2T=null;gRef.current.ti.p2=null}}},[]);
+  const onMD=useCallback(e=>{if(sndOn){sfx.init();sfx.resume()}const p=s2g(e.clientX,e.clientY);const z=p.y>H/2?"p1":"p2";tMap.current.set("m",{...p,zone:z});if(z==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}else if(z==="p2"&&gRef.current.p2Human){gRef.current.p2T=p;gRef.current.ti.p2=p}},[s2g,sndOn]);
+  const onMM=useCallback(e=>{const en=tMap.current.get("m");if(!en)return;const p=s2g(e.clientX,e.clientY);const z=en.zone;tMap.current.set("m",{...p,zone:z});if(z==="p1"){gRef.current.p1T=p;gRef.current.ti.p1=p}else if(z==="p2"&&gRef.current.p2Human){gRef.current.p2T=p;gRef.current.ti.p2=p}},[s2g]);
+  const onMU=useCallback(()=>{const en=tMap.current.get("m");tMap.current.delete("m");if(!en)return;if(en.zone==="p1"){gRef.current.p1T=null;gRef.current.ti.p1=null}else if(en.zone==="p2"&&gRef.current.p2Human){gRef.current.p2T=null;gRef.current.ti.p2=null}},[]);
 
   /* MENU MUSIC */
   useEffect(()=>{
@@ -684,7 +726,9 @@ export default function FootballGame(){
         const giant2=g.effects.p2.giant&&now2<g.effects.p2.giant;
         const pr1=(giant1?PR*1.5:PR),pr2=(giant2?PR*1.5:PR);
         if(g.p1T){const lrp=PLR*spd1;p1.x+=(Math.max(pr1+5,Math.min(W-pr1-5,g.p1T.x))-p1.x)*lrp;p1.y+=(Math.max(H/2+pr1+5,Math.min(H-pr1-15,g.p1T.y))-p1.y)*lrp}
-        aiUp();
+        // p2 control: AI by default, but when away player is human (tournament pass-and-play) follow top-half touch instead
+        if(g.p2Human){if(g.p2T){const lrp2=PLR;p2.x+=(Math.max(pr2+5,Math.min(W-pr2-5,g.p2T.x))-p2.x)*lrp2;p2.y+=(Math.max(15,Math.min(H/2-pr2-5,g.p2T.y))-p2.y)*lrp2}}
+        else{aiUp()}
         // Magnet
         if(mag1){const dx=p1.x-ball.x,dy=p1.y-ball.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist>0&&dist<120){ball.vx+=dx/dist*.3;ball.vy+=dy/dist*.3}}
         ball.x+=ball.vx;ball.y+=ball.vy;ball.vx*=FRC;ball.vy*=FRC;
@@ -900,9 +944,13 @@ export default function FootballGame(){
           <button className="mItem" onClick={()=>{
             sfx.click();setMode("tourney");setSel(null);
             const sv=readProgress("bf_tourney");
-            const j=sv?JERSEYS.find(x=>x.id===sv.j1Id):null;
-            if(sv&&j&&playerName.trim()){setJ1(j);setTRound(sv.tRound);setTResult(null);setScr("tourneyNext")}
-            else setScr("playerName");
+            // New round-robin format restore
+            if(sv&&sv.tParticipants&&sv.tSchedule&&playerName.trim()){
+              setTSize(sv.tSize);setTDiff(sv.tDiff);
+              setTParticipants(sv.tParticipants);setTSchedule(sv.tSchedule);
+              setTStandings(sv.tStandings);setTRound(sv.tRound);
+              setTResult(null);setScr("tourneyTable");
+            }else{clearProgress("bf_tourney");setScr("playerName")}
           }} style={bigBtn(PAL.tourney)}>
             <span style={btnIcon}>{ICO.tourney}</span><span style={btnLabel}>{t("tourney")}{tourneyResume&&<Badge color="#fff">{(tourneyResume.tRound||0)+1}/3</Badge>}</span>
           </button>
@@ -1028,7 +1076,7 @@ export default function FootballGame(){
       </>}
     </div>
     {sel&&<button onClick={()=>{sfx.click();setJ1(sel);const o=JERSEYS.filter(x=>x.id!==sel.id);setJ2(o[Math.floor(Math.random()*o.length)]);
-      if(mode==="tourney"){setTRound(0);setTResult(null);setScr("tourneyIntro")}
+      if(mode==="tourney"){setTRound(0);setTResult(null);setScr("tourneySetup")}
       else if(mode==="league"){setScr("leagueIntro")}
       else{startG()}
     }} style={{...gbtn(),animation:"fadeInUp .25s ease"}}>{mode==="tourney"||mode==="league"?t("next"):t("start")} →</button>}
@@ -1150,38 +1198,177 @@ export default function FootballGame(){
     </Fade></div>);
   }
 
-  if(scr==="tourneyIntro")return(<div style={ctn}><style>{css}</style><Fade><TopBar/><BackBtn to="jersey1" fn={()=>setSel(j1)}/>
-    <div style={{fontSize:48,marginBottom:4}}>🏆</div>
-    <h2 style={titSm}>{t("tourneyTitle")}</h2><p style={desc}>{t("tourneyDesc")}</p>
-    <div style={{...panel,gap:10}}>
-      <div style={{fontWeight:700,fontSize:"0.95em",marginBottom:4}}>{t("goals")}</div>
-      <div style={{display:"flex",gap:8}}>{[3,5,7].map(n=>(<button key={n} onClick={()=>{sfx.click();setMaxGoals(n)}} style={optBtn(maxGoals===n,{minWidth:52})}>{n}</button>))}</div>
-      <div style={{display:"flex",gap:8,alignItems:"center",margin:"14px 0 4px",flexWrap:"wrap",justifyContent:"center"}}>
-        {DIFF_ORDER.map((d,i)=>(<div key={d} style={{display:"flex",alignItems:"center",gap:6}}>
-          <div style={{background:i===0?"#8eff8e22":i===1?"#ffe06622":"#ff8e8e22",border:`1.5px solid ${i===0?"#8eff8e":i===1?"#ffe066":"#ff8e8e"}`,borderRadius:12,padding:"8px 14px",textAlign:"center",fontSize:"0.85em"}}>
-            <div style={{fontWeight:700}}>{t("round")} {i+1}</div><div style={{fontSize:"0.8em",color:cc.sub}}>{"⭐".repeat(i+1)} {t(d)}</div>
-          </div>{i<2&&<span style={{color:cc.sub,fontSize:18}}>→</span>}
-        </div>))}
+  // ───── NEW ROUND-ROBIN TOURNAMENT ─────
+  if(scr==="tourneySetup"){
+    // Initialize participants if size changed or list empty
+    const ensureSlots=(n)=>{
+      if(tParticipants.length===n)return tParticipants;
+      const used=new Set();
+      const list=[];
+      // Slot 0 = the user
+      const userJ=j1?.id||"blue";used.add(userJ);
+      list.push({name:playerName||"You",type:"human",jerseyId:userJ,me:true});
+      const remJerseys=JERSEYS.filter(x=>!used.has(x.id));
+      for(let i=1;i<n;i++){
+        const jerseyId=remJerseys[(i-1)%remJerseys.length]?.id||"red";
+        used.add(jerseyId);
+        list.push({name:`AI ${aiNames[(i-1)%aiNames.length]}`,type:"ai",jerseyId});
+      }
+      return list;
+    };
+    const slots=tParticipants.length===tSize?tParticipants:ensureSlots(tSize);
+    if(slots!==tParticipants)setTParticipants(slots);
+    const updateSlot=(i,patch)=>setTParticipants(prev=>prev.map((s,idx)=>idx===i?{...s,...patch}:s));
+    const usedJerseys=new Set(slots.map(s=>s.jerseyId));
+    const cycleJersey=(i)=>{const cur=slots[i].jerseyId;const order=JERSEYS.map(j=>j.id);const at=order.indexOf(cur);for(let k=1;k<=order.length;k++){const next=order[(at+k)%order.length];if(!usedJerseys.has(next)||next===cur){updateSlot(i,{jerseyId:next});return}}};
+    const allFilled=slots.every(s=>s.name&&s.name.trim());
+    return(<div style={ctn}><style>{css}</style><Fade><TopBar/><BackBtn to="menu"/>
+      <div style={{fontSize:42,marginBottom:4}}>🏆</div>
+      <h2 style={titSm}>{t("tourneyTitle")}</h2>
+      <div style={{...panel,gap:14,maxWidth:420}}>
+        <div style={{fontWeight:700,fontSize:".9em",marginBottom:-2}}>Tournament Size</div>
+        <div style={{display:"flex",gap:8,justifyContent:"center"}}>{[4,6,8].map(n=>(<button key={n} onClick={()=>{sfx.click();setTSize(n);setTParticipants([])}} style={optBtn(tSize===n,{minWidth:60})}>{n} {t("players")}</button>))}</div>
+        <div style={{fontWeight:700,fontSize:".9em",marginTop:6}}>{t("pickDiff")}</div>
+        <div style={{display:"flex",gap:8,justifyContent:"center"}}>{["easy","medium","hard"].map(d=>(<button key={d} onClick={()=>{sfx.click();setTDiff(d)}} style={optBtn(tDiff===d)}>{t(d)}</button>))}</div>
+        <div style={{fontWeight:700,fontSize:".9em",marginTop:6}}>{t("players")}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8,width:"100%"}}>
+          {slots.map((s,i)=>{
+            const j=JERSEYS.find(x=>x.id===s.jerseyId)||JERSEYS[0];
+            return(<div key={i} style={{display:"flex",alignItems:"center",gap:8,background:cc.inputBg,border:`1px solid ${cc.cardBorder}`,borderRadius:14,padding:"6px 8px"}}>
+              <button onClick={()=>{sfx.click();cycleJersey(i)}} title="Change jersey" style={{background:j.primary,border:`2px solid ${j.dark}`,borderRadius:"50%",width:30,height:30,padding:0,cursor:"pointer",flexShrink:0}}/>
+              <span style={{width:20,fontWeight:700,color:cc.sub,fontSize:".85em",textAlign:"center"}}>{i+1}.</span>
+              {s.me?(<span style={{flex:1,fontWeight:700,fontSize:".95em"}}>👤 {s.name}</span>)
+                :s.type==="ai"?(<>
+                  <span style={{flex:1,fontWeight:600,fontSize:".9em",color:cc.sub}}>🤖 {s.name}</span>
+                  <button onClick={()=>{sfx.click();updateSlot(i,{type:"human",name:""})}} style={{...ubtn({fontSize:".75em",padding:"5px 10px"}),flexShrink:0}}>+ Friend</button>
+                </>):(<>
+                  <input type="text" value={s.name} onChange={e=>updateSlot(i,{name:e.target.value})} placeholder="Friend name" maxLength={12} style={{flex:1,minWidth:0,background:"transparent",border:`1px solid ${cc.accentSolid}`,borderRadius:10,padding:"5px 10px",color:cc.txt,fontSize:".9em",outline:"none",fontFamily:"inherit"}}/>
+                  <button onClick={()=>{sfx.click();updateSlot(i,{type:"ai",name:`AI ${aiNames[(i-1)%aiNames.length]}`})}} style={{...ubtn({fontSize:".75em",padding:"5px 10px"}),flexShrink:0}}>→ AI</button>
+                </>)}
+            </div>);
+          })}
+        </div>
+        <div style={{fontWeight:700,fontSize:".9em",marginTop:6}}>{t("goals")}</div>
+        <div style={{display:"flex",gap:8,justifyContent:"center"}}>{[3,5,7].map(n=>(<button key={n} onClick={()=>{sfx.click();setMaxGoals(n)}} style={optBtn(maxGoals===n,{minWidth:52})}>{n}</button>))}</div>
+        <button disabled={!allFilled} onClick={()=>{
+          if(!allFilled)return;
+          sfx.click();
+          setTSchedule(generateSchedule(tSize));
+          setTStandings(blankStandings(tSize));
+          setTRound(0);
+          setTResult(null);
+          setScr("tourneyTable");
+        }} style={{...gbtn(),opacity:allFilled?1:.5,cursor:allFilled?"pointer":"not-allowed"}}>{t("tourneyStart")} →</button>
       </div>
-      <button onClick={()=>{setTRound(0);setTResult(null);startG()}} style={gbtn()}>{t("tourneyStart")}</button>
-    </div>
-  </Fade></div>);
+    </Fade></div>);
+  }
 
-  if(scr==="tourneyNext")return(<div style={ctn}><style>{css}</style><Fade><TopBar/>
-    <div style={{fontSize:48,marginBottom:4}}>✅</div>
-    <h2 style={titSm}>{t("round")} {tRound+1} {t("of")} 3 — {t(DIFF_ORDER[tRound])} ✓</h2>
-    <p style={desc}>{t("round")} {tRound+2}: {"⭐".repeat(tRound+2)} {t(DIFF_ORDER[tRound+1])}</p>
-    <div style={{display:"flex",alignItems:"center",gap:16,margin:"8px 0 16px"}}><PlayerPreview jersey={j1} size={50}/><span style={{color:cc.sub,fontWeight:700}}>{t("vs")}</span><PlayerPreview jersey={j2} size={50}/></div>
-    <button onClick={()=>{setTRound(r=>r+1);const o=JERSEYS.filter(x=>x.id!==j1.id);setJ2(o[Math.floor(Math.random()*o.length)]);startG()}} style={gbtn()}>{t("nextRound")}</button>
-  </Fade></div>);
+  if(scr==="tourneyTable"){
+    const sorted=tStandings.map((s,i)=>({...s,idx:i})).sort((a,b)=>b.pts-a.pts||(b.gf-b.ga)-(a.gf-a.ga)||b.gf-a.gf);
+    const upcoming=tSchedule[tRound];
+    const seasonOver=tRound>=tSchedule.length;
+    const total=tSchedule.length;
+    return(<div style={ctn}><style>{css}</style><Fade><TopBar/><BackBtn to="menu"/>
+      <div style={{fontSize:36,marginBottom:0}}>🏆</div>
+      <h2 style={{...titSm,marginBottom:6}}>{t("tourneyTitle")}</h2>
+      <p style={{...desc,margin:"0 0 8px"}}>{t("round")} {Math.min(tRound+1,total)} / {total} · {t(tDiff)}</p>
+      <div style={{...panel,padding:"12px 10px",gap:8,maxWidth:440}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:".82em"}}>
+          <thead>
+            <tr style={{color:cc.sub,fontSize:".82em",borderBottom:`1px solid ${cc.cardBorder}`}}>
+              <th style={{textAlign:"left",padding:"4px 4px"}}>#</th>
+              <th style={{textAlign:"left",padding:"4px 4px"}}>{t("player")}</th>
+              <th style={{padding:"4px 2px"}}>P</th>
+              <th style={{padding:"4px 2px"}}>W-D-L</th>
+              <th style={{padding:"4px 2px"}}>GF:GA</th>
+              <th style={{padding:"4px 2px",color:cc.accentSolid}}>Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((row,pos)=>{const part=tParticipants[row.idx];const isMe=part?.me;return(
+              <tr key={row.idx} style={{background:isMe?`${cc.accentSolid}18`:"transparent",borderBottom:`1px solid ${cc.cardBorder}30`}}>
+                <td style={{padding:"5px 4px",fontWeight:700}}>{pos+1}.</td>
+                <td style={{padding:"5px 4px",fontWeight:isMe?700:500}}>{isMe?"⭐ ":part?.type==="ai"?"🤖 ":"👤 "}{part?.name}</td>
+                <td style={{padding:"5px 2px",textAlign:"center"}}>{row.w+row.d+row.l}</td>
+                <td style={{padding:"5px 2px",textAlign:"center"}}>{row.w}-{row.d}-{row.l}</td>
+                <td style={{padding:"5px 2px",textAlign:"center"}}>{row.gf}:{row.ga}</td>
+                <td style={{padding:"5px 2px",textAlign:"center",fontWeight:800,color:cc.accentSolid}}>{row.pts}</td>
+              </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+      {!seasonOver?(()=>{
+        const home=tParticipants[upcoming[0]];
+        const away=tParticipants[upcoming[1]];
+        const isUserMatch=home.me||away.me;
+        const isFriendMatch=(home.type==="human")&&(away.type==="human");
+        return(<div style={{...panel,gap:8,marginTop:10,maxWidth:440,padding:"14px 14px"}}>
+          <div style={{fontSize:".85em",color:cc.sub,fontWeight:700}}>{t("nextRound")}</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontSize:"1em",fontWeight:700,flexWrap:"wrap"}}>
+            <span>{home.me?"⭐":home.type==="ai"?"🤖":"👤"} {home.name}</span>
+            <span style={{color:cc.sub}}>{t("vs")}</span>
+            <span>{away.me?"⭐":away.type==="ai"?"🤖":"👤"} {away.name}</span>
+          </div>
+          {isFriendMatch&&<p style={{fontSize:".75em",color:cc.sub,margin:0,textAlign:"center"}}>📱 {home.name} = bottom · {away.name} = top</p>}
+          <button onClick={()=>{
+            sfx.click();
+            const homeP=tParticipants[upcoming[0]],awayP=tParticipants[upcoming[1]];
+            const homeAI=homeP.type==="ai",awayAI=awayP.type==="ai";
+            if(homeAI&&awayAI){
+              // AI vs AI — auto-simulate
+              const[sa,sb]=simAIMatch(homeP,awayP);
+              setTStandings(prev=>prev.map((row,i)=>{
+                if(i===upcoming[0])return{...row,gf:row.gf+sa,ga:row.ga+sb,w:row.w+(sa>sb?1:0),d:row.d+(sa===sb?1:0),l:row.l+(sa<sb?1:0),pts:row.pts+(sa>sb?3:sa===sb?1:0)};
+                if(i===upcoming[1])return{...row,gf:row.gf+sb,ga:row.ga+sa,w:row.w+(sb>sa?1:0),d:row.d+(sa===sb?1:0),l:row.l+(sb<sa?1:0),pts:row.pts+(sb>sa?3:sa===sb?1:0)};
+                return row;
+              }));
+              setTRound(r=>r+1);
+            }else{
+              // At least one human — play live; user (if in match) always controls bottom, else first human is bottom
+              let bIdx,tIdx;
+              if(homeP.me){bIdx=upcoming[0];tIdx=upcoming[1]}
+              else if(awayP.me){bIdx=upcoming[1];tIdx=upcoming[0]}
+              else if(homeP.type==="human"){bIdx=upcoming[0];tIdx=upcoming[1]}
+              else{bIdx=upcoming[1];tIdx=upcoming[0]}
+              const bP=tParticipants[bIdx],tP=tParticipants[tIdx];
+              setJ1(JERSEYS.find(x=>x.id===bP.jerseyId)||JERSEYS[0]);
+              setJ2(JERSEYS.find(x=>x.id===tP.jerseyId)||JERSEYS[1]);
+              startG();
+              // Set after startG (reset() clears these defaults to false/null)
+              gRef.current.tHomeIdx=bIdx;gRef.current.tAwayIdx=tIdx;
+              gRef.current.p2Human=(tP.type==="human");
+            }
+          }} style={gbtn()}>▶ {isUserMatch?t("start"):isFriendMatch?"Friends play":"Simulate"}</button>
+        </div>);
+      })():(
+        <button onClick={()=>{sfx.click();setScr("tourneyEnd")}} style={{...gbtn(),marginTop:12}}>🏆 {t("tourneyWin")} →</button>
+      )}
+      <button onClick={()=>{sfx.click();setScr("menu")}} style={ubtn({marginTop:8})}>{t("back")}</button>
+    </Fade></div>);
+  }
 
-  if(scr==="tourneyResult"){const won=tResult==="win";return(<div style={ctn}><style>{css}</style><Fade>
-    <div style={{fontSize:56,marginBottom:6,animation:"bounce .6s ease"}}>{won?"🏆":"😢"}</div>
-    <h1 style={{...titS,fontSize:"clamp(1.3em,6vw,1.8em)",marginTop:8}}>{won?t("champion"):t("tourneyLose")}</h1>
-    <p style={desc}>{won?t("tourneyWin"):`${t("round")} ${tRound+1} ${t("of")} 3`}</p>
-    {won&&<PlayerPreview jersey={j1} size={80}/>}
-    <button onClick={()=>{sfx.click();setScr("menu")}} style={gbtn()}>{t("back")}</button>
-  </Fade></div>)}
+  if(scr==="tourneyEnd"){
+    const sorted=tStandings.map((s,i)=>({...s,idx:i})).sort((a,b)=>b.pts-a.pts||(b.gf-b.ga)-(a.gf-a.ga)||b.gf-a.gf);
+    const champ=tParticipants[sorted[0]?.idx];
+    const isUserChamp=champ?.me;
+    return(<div style={ctn}><style>{css}</style><Fade>
+      <div style={{fontSize:56,marginBottom:6,animation:"bounce .6s ease"}}>🏆</div>
+      <h1 style={{...titS,fontSize:"clamp(1.3em,6vw,1.8em)",marginTop:8}}>{champ?.name} — {t("champion")}</h1>
+      <p style={desc}>{isUserChamp?t("tourneyWin"):t("great")}</p>
+      {champ&&<PlayerPreview jersey={JERSEYS.find(x=>x.id===champ.jerseyId)||JERSEYS[0]} size={80}/>}
+      <div style={{...panel,maxWidth:420,marginTop:8,padding:"10px"}}>
+        <div style={{fontWeight:700,fontSize:".85em",marginBottom:4}}>Final Standings</div>
+        {sorted.slice(0,Math.min(8,sorted.length)).map((row,pos)=>{const p=tParticipants[row.idx];return(
+          <div key={row.idx} style={{display:"flex",justifyContent:"space-between",padding:"4px 6px",fontSize:".85em",background:p?.me?`${cc.accentSolid}18`:"transparent",borderRadius:8}}>
+            <span><b>{pos+1}.</b> {p?.me?"⭐":p?.type==="ai"?"🤖":"👤"} {p?.name}</span>
+            <span style={{color:cc.accentSolid,fontWeight:700}}>{row.pts} pts ({row.gf}:{row.ga})</span>
+          </div>
+        )})}
+      </div>
+      <button onClick={()=>{sfx.click();setTParticipants([]);setTSchedule([]);setTStandings([]);setTRound(0);setScr("menu")}} style={{...gbtn(),marginTop:12}}>{t("back")}</button>
+    </Fade></div>);
+  }
 
   if(scr==="online"){const genC=()=>{const ch="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let code="";for(let i=0;i<6;i++)code+=ch[Math.floor(Math.random()*ch.length)];setRoomCode(code)};
     if(otScreen==="lobby")return(<div style={ctn}><style>{css}</style><Fade><TopBar/><BackBtn to="online" fn={()=>setOtScreen(null)}/>
