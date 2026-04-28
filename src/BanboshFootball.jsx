@@ -1338,6 +1338,10 @@ export default function FootballGame(){
               // Set after startG (reset() clears these defaults to false/null)
               gRef.current.tHomeIdx=bIdx;gRef.current.tAwayIdx=tIdx;
               gRef.current.p2Human=(tP.type==="human");
+              // Random weather per tournament match (visual only, no physics impact)
+              const wr=Math.random();
+              gRef.current.weather=wr<.55?"clear":wr<.8?"rain":"snow";
+              gRef.current.weatherParts=[];
             }
           }} style={gbtn()}>▶ {isUserMatch?t("start"):isFriendMatch?"Friends play":"Simulate"}</button>
         </div>);
