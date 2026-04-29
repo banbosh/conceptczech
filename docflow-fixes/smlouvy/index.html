@@ -109,7 +109,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
 .lang-flag:hover,.lang-flag.active{opacity:1;}
 
 /* ── TOPBAR ── */
-.topbar{position:sticky;top:0;z-index:50;background:rgba(var(--bg-rgb,12,14,22),.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;gap:12px;}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(var(--bg-rgb,12,14,22),.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding-top:env(safe-area-inset-top,0);padding-left:20px;padding-right:20px;min-height:calc(60px + env(safe-area-inset-top,0));box-sizing:border-box;display:flex;align-items:center;gap:12px;}
+.login-screen{padding-top:calc(24px + env(safe-area-inset-top,0)) !important;padding-bottom:calc(24px + env(safe-area-inset-bottom,0)) !important;}
+.fab{bottom:calc(20px + env(safe-area-inset-bottom,0)) !important;}
+.main{padding-bottom:calc(120px + env(safe-area-inset-bottom,0)) !important;}
 [data-theme="light"] .topbar{background:rgba(244,245,251,.92);}
 .topbar-logo{display:flex;align-items:center;gap:10px;flex:1;}
 .topbar-logo-icon{width:32px;height:32px;background:var(--accent-dim);border:1px solid rgba(108,99,255,.25);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--accent);}
