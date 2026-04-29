@@ -3444,7 +3444,7 @@ async function checkBiometricAvailable() {
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   if (!isNative) return false;
   try {
-    const BA = window.Capacitor.Plugins.BiometricAuth;
+    const BA = window.Capacitor.Plugins.BiometricAuthNative || window.Capacitor.Plugins.BiometricAuth;
     if (!BA) { console.warn('BiometricAuth plugin not loaded'); return false; }
     const result = await BA.checkBiometry();
     console.log('Biometric check result:', JSON.stringify(result));
@@ -3473,7 +3473,7 @@ async function toggleBiometric() {
   if (!enabled) {
     // Zapnutí — ověřit nejdřív
     try {
-      const BA = window.Capacitor.Plugins.BiometricAuth;
+      const BA = window.Capacitor.Plugins.BiometricAuthNative || window.Capacitor.Plugins.BiometricAuth;
       await BA.authenticate({
         reason: 'Zapnout biometrický zámek',
         cancelTitle: 'Zrušit',
@@ -3508,7 +3508,7 @@ async function biometricUnlock() {
   document.getElementById('appShell').style.visibility = 'hidden';
   document.getElementById('fab').style.visibility = 'hidden';
   try {
-    const BA = window.Capacitor.Plugins.BiometricAuth;
+    const BA = window.Capacitor.Plugins.BiometricAuthNative || window.Capacitor.Plugins.BiometricAuth;
     await BA.authenticate({
       reason: 'Odemkněte DocFlow',
       cancelTitle: 'Zrušit',
