@@ -996,7 +996,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
     <!-- SECURITY (2FA + Biometric) -->
     <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px" id="settings-security-title">Security</div>
     <div class="settings-group">
-      <div class="settings-item" id="biometricSettingsItem" onclick="toggleBiometric()" style="display:none">
+      <div class="settings-item" id="biometricSettingsItem" onclick="toggleBiometric()">
         <div class="settings-item-icon" style="background:rgba(52,211,153,.1);color:var(--green)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/><path d="M5 19.5C5.5 18 6 15 6 12c0-.7.12-1.37.34-2"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M12 2c-1.05 0-2.05.16-3 .46"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg>
         </div>
@@ -3445,9 +3445,10 @@ async function checkBiometricAvailable() {
   if (!isNative) return false;
   try {
     const BA = window.Capacitor.Plugins.BiometricAuth;
-    if (!BA) return false;
+    if (!BA) { console.warn('BiometricAuth plugin not loaded'); return false; }
     const result = await BA.checkBiometry();
-    return !!(result && (result.isAvailable || result.biometryType || result.code === 0));
+    console.log('Biometric check result:', JSON.stringify(result));
+    return true; // Být tolerantní — zobrazíme toggle; pokud auth selže, řekneme proč
   } catch(e) {
     console.warn('Biometric check failed:', e);
     return false;
