@@ -3459,11 +3459,11 @@ async function initBiometricUI() {
   const item = document.getElementById('biometricSettingsItem');
   const toggle = document.getElementById('biometricToggle');
   if (!item || !toggle) return;
-  const available = await checkBiometricAvailable();
-  if (!available) { item.style.display = 'none'; return; }
+  // Toggle vidíme vždy — pokud biometrie není k dispozici, řekneme to při kliknutí
   item.style.display = 'flex';
   const enabled = localStorage.getItem('biometricEnabled') === '1';
   toggle.classList.toggle('on', enabled);
+  try { await checkBiometricAvailable(); } catch(_) {}
 }
 
 async function toggleBiometric() {
