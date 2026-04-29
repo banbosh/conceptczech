@@ -3393,20 +3393,158 @@ async function toggleNotifications() {
 }
 
 async function requestNotificationPermission() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default' && notifEnabled) {
-    await Notification.requestPermission();
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if (isNative) {
+    try {
+      const LN = window.Capacitor.Plugins.LocalNotifications;
+      if (LN) {
+        const perm = await LN.checkPermissions();
+        if (perm.display !== 'granted' && notifEnabled) {
+          await LN.requestPermissions();
+        }
+      }
+      const PN = window.Capacitor.Plugins.PushNotifications;
+      if (PN) {
+        const ppm = await PN.checkPermissions();
+        if (ppm.receive !== 'granted' && notifEnabled) {
+          await PN.requestPermissions();
+        }
+        // Zaregistrovat FCM token (pro budoucí server-side push)
+        try {
+          await PN.register();
+          PN.addListener('registration', async (token) => {
+            console.log('FCM token:', token.value);
+            // Uložit token do Firestore pro pozdější server-push
+            try {
+              if (window._fb && window._fbUser) {
+                await window._fb.setDoc(
+                  window._fb.doc(window._fb.db, 'users', window._fbUser.uid, 'devices', token.value.slice(0, 40)),
+                  { token: token.value, platform: 'android', updatedAt: Date.now() }
+                );
+              }
+            } catch(_) {}
+          });
+          PN.addListener('registrationError', (err) => console.warn('FCM registration error:', err));
+          PN.addListener('pushNotificationReceived', (notif) => {
+            console.log('Push received:', notif);
+          });
+          PN.addListener('pushNotificationActionPerformed', (action) => {
+            console.log('Push tapped:', action);
+          });
+        } catch(e) { console.warn('Push register failed:', e); }
+      }
+    } catch(e) { console.warn('Native notif perm error:', e); }
+  } else {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default' && notifEnabled) {
+      await Notification.requestPermission();
+    }
   }
   checkRenewalNotifications();
 }
 
-function checkRenewalNotifications() {
+async function checkRenewalNotifications() {
   if (!notifEnabled) return;
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const soon = contracts.filter(c => {
     const d = daysUntil(c.renewal);
     return d !== null && d >= 0 && d <= 7;
   });
+
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+  // === NATIVE: Capacitor Local Notifications + Haptics ===
+  if (isNative) {
+    try {
+      const LN = window.Capacitor.Plugins.LocalNotifications;
+      if (!LN) return;
+      const perm = await LN.checkPermissions();
+      if (perm.display !== 'granted') return;
+
+      // Zrušit předchozí naplánované renewal notifikace
+      try {
+        const pending = await LN.getPending();
+        if (pending && pending.notifications && pending.notifications.length) {
+          await LN.cancel({ notifications: pending.notifications.filter(n => String(n.id).startsWith('renew')).map(n => ({ id: n.id })) });
+        }
+      } catch(_) {}
+
+      // Vytvořit "Renewals" channel jednou
+      try {
+        if (LN.createChannel) {
+          await LN.createChannel({
+            id: 'renewals',
+            name: 'Obnovení smluv',
+            description: 'Upozornění na blížící se obnovení smluv a předplatného',
+            importance: 4, // HIGH
+            visibility: 1, // PUBLIC
+            sound: 'default',
+            vibration: true,
+            lights: true,
+            lightColor: '#6c63ff'
+          });
+        }
+      } catch(_) {}
+
+      // Naplánovat krásnou notifikaci pro celkový souhrn (zítra v 9:00, pokud jsou nějaké soon)
+      if (soon.length > 0) {
+        const names = soon.slice(0, 3).map(c => c.name).join(', ');
+        const more = soon.length > 3 ? ` +${soon.length - 3} dalších` : '';
+        const tomorrow9 = new Date();
+        tomorrow9.setDate(tomorrow9.getDate() + 1);
+        tomorrow9.setHours(9, 0, 0, 0);
+
+        await LN.schedule({
+          notifications: [{
+            id: parseInt('99001', 10),
+            title: 'DocFlow — připomenutí',
+            body: `${soon.length} ${soon.length === 1 ? 'smlouva se obnovuje' : 'smluv se obnovuje'} brzy: ${names}${more}`,
+            largeBody: soon.map(c => `• ${c.name} — ${c.renewal}`).join('\n'),
+            summaryText: `${soon.length} obnovení`,
+            channelId: 'renewals',
+            schedule: { at: tomorrow9, allowWhileIdle: true },
+            smallIcon: 'ic_stat_icon_config_sample',
+            iconColor: '#6c63ff',
+            sound: null,
+            extra: { type: 'renewal-summary' }
+          }]
+        });
+
+        // Per-smlouva notifikace 7 dní předem v 9:00
+        const perContract = [];
+        soon.forEach((c, idx) => {
+          const renewalDate = new Date(c.renewal);
+          if (isNaN(renewalDate.getTime())) return;
+          const notifDate = new Date(renewalDate);
+          notifDate.setDate(notifDate.getDate() - 7);
+          notifDate.setHours(9, 0, 0, 0);
+          if (notifDate.getTime() < Date.now()) return; // už by se to mělo ukázat dnes nebo později
+          perContract.push({
+            id: 90000 + (idx + 1),
+            title: `Obnovení za 7 dní: ${c.name}`,
+            body: `${c.name} se obnovuje ${c.renewal} • ${c.price ? c.price + ' Kč' : ''}`,
+            channelId: 'renewals',
+            schedule: { at: notifDate, allowWhileIdle: true },
+            smallIcon: 'ic_stat_icon_config_sample',
+            iconColor: '#6c63ff',
+            extra: { type: 'renewal', contractId: c.id }
+          });
+        });
+        if (perContract.length) {
+          await LN.schedule({ notifications: perContract });
+        }
+
+        // Krátký haptic (vibrace) jako confirmation že se notif naplánovala
+        try {
+          const H = window.Capacitor.Plugins.Haptics;
+          if (H && H.impact) await H.impact({ style: 'LIGHT' });
+        } catch(_) {}
+      }
+    } catch(e) { console.warn('Native notif schedule failed:', e); }
+    return;
+  }
+
+  // === WEB: Notification API ===
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (soon.length > 0) {
     const names = soon.slice(0, 3).map(c => c.name).join(', ');
     new Notification('DocFlow', {
