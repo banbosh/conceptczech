@@ -2,7 +2,7 @@
 <html lang="cs" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>DocFlow — Správa smluv | BANBOSH Studio</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
@@ -2235,6 +2235,14 @@ function applyTheme() {
   if(tog) { tog.classList.toggle('on', isDark); }
   const sysBtn = document.getElementById('systemThemeBtn');
   if(sysBtn) { sysBtn.classList.toggle('active', themeMode === 'system'); }
+  // Native status bar (Capacitor) — aktualizovat podle aktivního tématu
+  try {
+    const SB = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+    if (SB) {
+      SB.setStyle({ style: isDark ? 'DARK' : 'LIGHT' }).catch(()=>{});
+      SB.setBackgroundColor({ color: isDark ? '#0c0e16' : '#ffffff' }).catch(()=>{});
+    }
+  } catch(_) {}
 }
 
 function toggleTheme() {
@@ -3825,6 +3833,16 @@ applyNotifToggle();
 const savedUser=ls('ckuser');
 if(savedUser){user=savedUser;afterLogin();}
 checkRatePrompt();
+
+// Skrýt native splash screen, jakmile je apka připravená.
+// Webová verze tuto branch ignoruje (Capacitor plugin neexistuje).
+try {
+  const SP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen;
+  if (SP) {
+    // Drobné zpoždění pro plynulý fade-out po vykreslení UI
+    setTimeout(() => SP.hide({ fadeOutDuration: 250 }).catch(()=>{}), 250);
+  }
+} catch(_) {}
 </script>
 </body>
 </html>
