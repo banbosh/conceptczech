@@ -23,7 +23,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
   import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -41,7 +41,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  window._fb = { auth, db, GoogleAuthProvider, OAuthProvider, signInWithPopup, signOut, onAuthStateChanged, doc, setDoc, getDoc, collection, onSnapshot };
+  window._fb = { auth, db, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged, doc, setDoc, getDoc, collection, onSnapshot };
 
   // Auth state listener
   onAuthStateChanged(auth, (firebaseUser) => {
@@ -2419,26 +2419,62 @@ const TEMPLATES = [
 ═══════════════════════════════════════════════════ */
 let user = null;
 
-function signInGoogle() {
+async function signInGoogle() {
   const fb = window._fb;
   if (!fb) { alert(t().firebaseNotLoaded||'Firebase not loaded'); return; }
-  const provider = new fb.GoogleAuthProvider();
-  fb.signInWithPopup(fb.auth, provider).then(result => {
-    const u = result.user;
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  try {
+    let userCredential;
+    if (isNative) {
+      const FA = window.Capacitor.Plugins.FirebaseAuthentication;
+      const result = await FA.signInWithGoogle();
+      const idToken = result && result.credential && result.credential.idToken;
+      if (!idToken) throw new Error('No idToken from native Google Sign-In');
+      const cred = fb.GoogleAuthProvider.credential(idToken);
+      userCredential = await fb.signInWithCredential(fb.auth, cred);
+    } else {
+      const provider = new fb.GoogleAuthProvider();
+      userCredential = await fb.signInWithPopup(fb.auth, provider);
+    }
+    const u = userCredential.user;
     user = {id: u.uid, name: u.displayName||'Google User', email: u.email||'', avatar: u.photoURL||'G', provider:'google'};
     afterLogin();
-  }).catch(e => { console.error('Google login failed:', e); const errEl=document.getElementById('loginError'); if(errEl){errEl.textContent=(t().loginFailed||'Login failed: ')+e.message;errEl.style.display='block';}else{alert(e.message);} });
+  } catch(e) {
+    console.error('Google login failed:', e);
+    const errEl = document.getElementById('loginError');
+    if (errEl) { errEl.textContent = (t().loginFailed||'Login failed: ') + e.message; errEl.style.display = 'block'; }
+    else { alert(e.message); }
+  }
 }
-function signInApple() {
+async function signInApple() {
   const fb = window._fb;
   if (!fb) { alert(t().firebaseNotLoaded||'Firebase not loaded'); return; }
-  const provider = new fb.OAuthProvider('apple.com');
-  provider.addScope('name'); provider.addScope('email');
-  fb.signInWithPopup(fb.auth, provider).then(result => {
-    const u = result.user;
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  try {
+    let userCredential;
+    if (isNative) {
+      const FA = window.Capacitor.Plugins.FirebaseAuthentication;
+      const result = await FA.signInWithApple({ scopes: ['name','email'] });
+      const idToken = result && result.credential && result.credential.idToken;
+      const rawNonce = result && result.credential && result.credential.nonce;
+      if (!idToken) throw new Error('No idToken from native Apple Sign-In');
+      const provider = new fb.OAuthProvider('apple.com');
+      const cred = provider.credential({ idToken, rawNonce });
+      userCredential = await fb.signInWithCredential(fb.auth, cred);
+    } else {
+      const provider = new fb.OAuthProvider('apple.com');
+      provider.addScope('name'); provider.addScope('email');
+      userCredential = await fb.signInWithPopup(fb.auth, provider);
+    }
+    const u = userCredential.user;
     user = {id: u.uid, name: u.displayName||'Apple User', email: u.email||'', avatar: 'A', provider:'apple'};
     afterLogin();
-  }).catch(e => { console.error('Apple login failed:', e); const errEl=document.getElementById('loginError'); if(errEl){errEl.textContent=(t().loginFailed||'Login failed: ')+e.message;errEl.style.display='block';}else{alert(e.message);} });
+  } catch(e) {
+    console.error('Apple login failed:', e);
+    const errEl = document.getElementById('loginError');
+    if (errEl) { errEl.textContent = (t().loginFailed||'Login failed: ') + e.message; errEl.style.display = 'block'; }
+    else { alert(e.message); }
+  }
 }
 function emailLogin() {
   const email = document.getElementById('emailInput').value.trim();
