@@ -964,6 +964,16 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
         </div>
         <div class="settings-item-right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
+      <div class="settings-item" onclick="testNotification()">
+        <div class="settings-item-icon" style="background:rgba(108,99,255,.1);color:var(--accent)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="settings-item-body">
+          <div class="settings-item-title">Test notifikace</div>
+          <div class="settings-item-sub">Odeslat zkušební notifikaci (přijde za 5 s)</div>
+        </div>
+        <div class="settings-item-right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
     </div>
 
     <!-- SECURITY (2FA) -->
@@ -3390,6 +3400,88 @@ async function toggleNotifications() {
     localStorage.setItem('notif-enabled', '0');
   }
   applyNotifToggle();
+}
+
+async function testNotification() {
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  console.log('=== TEST NOTIFICATION ===');
+  console.log('isNative:', isNative);
+
+  if (isNative) {
+    try {
+      const LN = window.Capacitor.Plugins.LocalNotifications;
+      if (!LN) { alert('LocalNotifications plugin nenačten'); return; }
+
+      // Zkontrolovat permissions
+      let perm = await LN.checkPermissions();
+      console.log('Permissions:', JSON.stringify(perm));
+
+      if (perm.display !== 'granted') {
+        console.log('Žádám o povolení...');
+        perm = await LN.requestPermissions();
+        console.log('Po požadavku:', JSON.stringify(perm));
+        if (perm.display !== 'granted') {
+          alert('Notifikace zamítnuty. Povolte je v Settings → Apps → DocFlow → Notifications.');
+          return;
+        }
+      }
+
+      // Vytvořit channel (silently fails pokud už existuje)
+      try {
+        if (LN.createChannel) {
+          await LN.createChannel({
+            id: 'renewals',
+            name: 'Obnovení smluv',
+            description: 'Upozornění na blížící se obnovení smluv',
+            importance: 4,
+            visibility: 1,
+            sound: 'default',
+            vibration: true,
+            lights: true,
+            lightColor: '#6c63ff'
+          });
+        }
+      } catch(_) {}
+
+      // Naplánovat za 5 s
+      const at = new Date(Date.now() + 5000);
+      await LN.schedule({
+        notifications: [{
+          id: 99999,
+          title: 'DocFlow — TEST',
+          body: 'Pokud vidíte tuto zprávu, notifikace fungují! 🎉',
+          largeBody: 'Toto je test, jak budou vypadat skutečné notifikace o obnovování smluv. Vibrace, zvuk a fialové LED jsou aktivní.',
+          channelId: 'renewals',
+          schedule: { at: at, allowWhileIdle: true },
+          iconColor: '#6c63ff',
+          extra: { type: 'test' }
+        }]
+      });
+
+      // Haptic feedback
+      try {
+        const H = window.Capacitor.Plugins.Haptics;
+        if (H && H.impact) await H.impact({ style: 'MEDIUM' });
+      } catch(_) {}
+
+      alert('✅ Notifikace naplánována na ' + at.toLocaleTimeString() + '\n\nZavřete apku a počkejte 5 vteřin.');
+    } catch(e) {
+      console.error('Test notif error:', e);
+      alert('Chyba: ' + e.message);
+    }
+  } else {
+    if (!('Notification' in window)) { alert('Tento prohlížeč nepodporuje notifikace.'); return; }
+    let perm = Notification.permission;
+    if (perm === 'default') perm = await Notification.requestPermission();
+    if (perm !== 'granted') { alert('Notifikace zamítnuty.'); return; }
+    setTimeout(() => {
+      new Notification('DocFlow — TEST', {
+        body: 'Pokud vidíte tuto zprávu, notifikace fungují! 🎉',
+        icon: 'icon-512.png',
+      });
+    }, 5000);
+    alert('✅ Notifikace naplánována za 5 s. Můžete přepnout do jiné záložky.');
+  }
 }
 
 async function requestNotificationPermission() {
