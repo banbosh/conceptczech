@@ -3785,8 +3785,11 @@ async function removeFamilyMember(i) {
 
 /* ══════════════════════════════════════════════════
    SERVICE WORKER REGISTRATION
+   Pouze pro web verzi. V Capacitor native apce
+   je SW zbytečný a způsobuje cache problémy při updatech.
 ═══════════════════════════════════════════════════ */
-if ('serviceWorker' in navigator) {
+const _isCapacitorNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+if ('serviceWorker' in navigator && !_isCapacitorNative) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(reg => {
       console.log('SW registered:', reg.scope);
@@ -3797,6 +3800,14 @@ if ('serviceWorker' in navigator) {
       }
     }).catch(e => console.warn('SW registration failed:', e));
   });
+} else if (_isCapacitorNative) {
+  // V native apce: pokud byl SW zaregistrovaný v minulé verzi,
+  // odregistrujeme ho, ať necachuje staré assety.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister().then(() => console.log('SW unregistered (native mode)')));
+    }).catch(()=>{});
+  }
 
   // Listen for SW messages
   navigator.serviceWorker.addEventListener('message', e => {
