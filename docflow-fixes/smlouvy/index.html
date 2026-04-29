@@ -3486,7 +3486,8 @@ async function toggleBiometric() {
       try { const H = window.Capacitor.Plugins.Haptics; if (H && H.impact) await H.impact({ style: 'LIGHT' }); } catch(_) {}
     } catch(e) {
       console.warn('Biometric enroll failed:', e);
-      alert('Ověření selhalo. Biometrický zámek nebyl zapnut.');
+      const msg = (e && e.message) ? e.message : (e && e.code ? e.code : JSON.stringify(e));
+      alert('Ověření selhalo:\n\n' + msg + '\n\nMožné příčiny:\n• Otisk/Face ID v telefonu není nastaven\n• Stiskl jste Zrušit\n• Telefon biometriku nepodporuje');
     }
   } else {
     // Vypnutí — zeptat se
