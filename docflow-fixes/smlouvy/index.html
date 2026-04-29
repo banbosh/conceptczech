@@ -3474,7 +3474,8 @@ async function toggleBiometric() {
     // Zapnutí — ověřit nejdřív
     try {
       const BA = window.Capacitor.Plugins.BiometricAuthNative || window.Capacitor.Plugins.BiometricAuth;
-      await BA.authenticate({
+      const authFn = (BA.internalAuthenticate || BA.authenticate).bind(BA);
+      await authFn({
         reason: 'Zapnout biometrický zámek',
         cancelTitle: 'Zrušit',
         androidTitle: 'Biometrické ověření',
@@ -3509,7 +3510,8 @@ async function biometricUnlock() {
   document.getElementById('fab').style.visibility = 'hidden';
   try {
     const BA = window.Capacitor.Plugins.BiometricAuthNative || window.Capacitor.Plugins.BiometricAuth;
-    await BA.authenticate({
+    const authFn = (BA.internalAuthenticate || BA.authenticate).bind(BA);
+    await authFn({
       reason: 'Odemkněte DocFlow',
       cancelTitle: 'Zrušit',
       androidTitle: 'DocFlow',
