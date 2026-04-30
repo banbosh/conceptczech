@@ -3578,16 +3578,40 @@ async function scanContractWithOCR() {
 
     // 1. Otevřít Document Scanner
     const DS = window.Capacitor.Plugins.DocumentScanner;
-    if (!DS) { alert('Document Scanner plugin není dostupný.'); return; }
-    const scanResult = await DS.scanDocument({
-      pageLimit: 1,
-      resultFormats: ['JPEG'],
-      // další options podle pluginu
-    });
+    if (!DS) { alert('Document Scanner plugin není dostupný.\nZkuste znovu spustit apku.'); return; }
+    console.log('DS methods:', Object.keys(DS));
 
-    const uris = (scanResult && (scanResult.scannedImages || scanResult.imageURIs || scanResult.images)) || [];
-    if (!uris || !uris.length) { btn && (btn.innerHTML = orig); return; }
+    // ML Kit Document Scanner v8: metoda 'scanDocument' nebo 'startScan'
+    const scanFn = DS.scanDocument || DS.startScan || DS.scan;
+    if (!scanFn) { alert('Žádná scan metoda nenalezena.\nDostupné: ' + Object.keys(DS).join(', ')); return; }
+
+    let scanResult;
+    try {
+      scanResult = await scanFn.call(DS, {
+        pageLimit: 1,
+        resultFormats: ['JPEG'],
+      });
+      console.log('Scan result:', JSON.stringify(scanResult).slice(0, 500));
+    } catch (scanErr) {
+      console.error('Scan plugin error:', scanErr);
+      throw new Error('Scanner: ' + (scanErr.message || JSON.stringify(scanErr)));
+    }
+
+    // Různé klíče v různých verzích
+    const uris = (scanResult && (
+      scanResult.scannedImages ||
+      scanResult.imageURIs ||
+      scanResult.images ||
+      scanResult.uris ||
+      []
+    ));
+    if (!uris || !uris.length) {
+      alert('Scanner nevrátil žádný obrázek.\nPravděpodobně jste sken zrušil.');
+      if (btn) btn.innerHTML = orig;
+      return;
+    }
     const firstUri = uris[0];
+    console.log('First URI:', firstUri);
 
     if (btn) btn.innerHTML = '<span>🤖 Rozpoznávám text…</span>';
 
