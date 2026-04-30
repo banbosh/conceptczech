@@ -858,14 +858,23 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
       </div>
     </div>
 
-    <!-- DIGITÁLNÍ PODPIS -->
+    <!-- DIGITÁLNÍ PODPIS — sbalený, rozbalí se kliknutím (zabraňuje neúmyslnému zápisu při swipu) -->
     <div class="fg full" style="margin-top:12px">
-      <label style="font-size:13px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
-        <span><span id="lbl-signature">Digital signature</span></span>
-        <button onclick="clearSignature()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;color:var(--muted);cursor:pointer;font-size:12px"><span id="lbl-clear-signature">Clear</span></button>
-      </label>
-      <canvas id="signatureCanvas" width="460" height="120" style="border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,0.03);cursor:crosshair;width:100%;height:120px;touch-action:none"></canvas>
-      <p style="font-size:11px;color:var(--muted);margin-top:4px;text-align:center" id="lbl-sign-hint">Sign with finger or mouse</p>
+      <button type="button" id="signatureToggle" onclick="toggleSignaturePad()" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:var(--text);font-size:14px;font-weight:500;">
+        <span style="display:flex;align-items:center;gap:10px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span id="lbl-signature">Digital signature</span>
+          <span id="signatureBadge" style="font-size:11px;padding:2px 8px;border-radius:8px;background:var(--accent-dim);color:var(--accent);display:none">✓</span>
+        </span>
+        <svg id="signatureChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="signaturePadWrap" style="display:none;margin-top:10px;">
+        <canvas id="signatureCanvas" width="460" height="120" style="border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,0.03);cursor:crosshair;width:100%;height:120px;touch-action:none;display:block"></canvas>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+          <p style="font-size:11px;color:var(--muted);margin:0" id="lbl-sign-hint">Sign with finger or mouse</p>
+          <button onclick="clearSignature()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;color:var(--muted);cursor:pointer;font-size:12px"><span id="lbl-clear-signature">Clear</span></button>
+        </div>
+      </div>
     </div>
 
     <div class="modal-actions">
@@ -1002,16 +1011,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
         <div class="settings-item-body">
           <div class="settings-item-title" id="settings-export">Export data</div>
           <div class="settings-item-sub" id="settings-export-sub">Download all records as CSV</div>
-        </div>
-        <div class="settings-item-right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
-      </div>
-      <div class="settings-item" onclick="testNotification()">
-        <div class="settings-item-icon" style="background:rgba(108,99,255,.1);color:var(--accent)">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        </div>
-        <div class="settings-item-body">
-          <div class="settings-item-title">Test notifikace</div>
-          <div class="settings-item-sub">Odeslat zkušební notifikaci (přijde za 5 s)</div>
         </div>
         <div class="settings-item-right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
@@ -3130,6 +3129,17 @@ function initSignaturePad() {
   canvas.addEventListener('touchend', end);
 }
 
+function toggleSignaturePad() {
+  const wrap = document.getElementById('signaturePadWrap');
+  const chev = document.getElementById('signatureChevron');
+  if (!wrap) return;
+  const isOpen = wrap.style.display !== 'none';
+  wrap.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  // Reinit canvas (pro správné rozměry po rozbalení)
+  if (!isOpen) setTimeout(() => { try { initSignaturePad(); } catch(_) {} }, 50);
+}
+
 function clearSignature() {
   const canvas = document.getElementById('signatureCanvas');
   if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
@@ -3166,8 +3176,13 @@ function clearPdf() {
 }
 
 function openModal(id){
-  // Init signature pad
-  setTimeout(initSignaturePad, 100);
+  // Sbalit signature pad při každém otevření (zabraňuje neúmyslnému kreslení)
+  try {
+    const wrap = document.getElementById('signaturePadWrap');
+    const chev = document.getElementById('signatureChevron');
+    if (wrap) wrap.style.display = 'none';
+    if (chev) chev.style.transform = 'rotate(0deg)';
+  } catch(_) {}
   clearSignature();
   clearPdf();
   // Reset status
