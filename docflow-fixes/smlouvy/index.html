@@ -720,6 +720,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
       </div>
       <span id="modalTitle">New Record</span>
     </h2>
+    <button id="scanContractBtn" onclick="scanContractWithOCR()" style="display:none;width:100%;background:linear-gradient(135deg,#6c63ff,#8b85ff);color:#fff;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:600;cursor:pointer;display:none;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;box-shadow:0 4px 14px rgba(108,99,255,.3)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>Naskenovat smlouvu</span>
+    </button>
     <div class="tpl-section" id="tplSection">
       <div class="tpl-label" id="lbl-templates">Quick templates — or fill manually:</div>
       <div class="tpl-grid" id="tplGrid"></div>
@@ -3145,6 +3149,8 @@ function openModal(id){
   editId=id||null;
   document.getElementById('modalTitle').textContent=editId?t().editRecord:t().newRecord;
   document.getElementById('tplSection').style.display=editId?'none':'block';
+  // Zobrazit Scan tlačítko jen v native módu a jen u nového záznamu (ne edit)
+  try { showScanButtonIfNative(); const sb = document.getElementById('scanContractBtn'); if (sb) sb.style.display = (editId ? 'none' : (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ? 'flex' : 'none'); } catch(_) {}
   if(editId){
     const c=contracts.find(x=>x.id===editId);
     if(c){
@@ -3535,6 +3541,94 @@ function biometricLogoutFromLock() {
   document.getElementById('appShell').style.visibility = 'visible';
   document.getElementById('fab').style.visibility = 'visible';
   if (typeof logout === 'function') logout();
+}
+
+/* ══════════════════════════════════════════════════
+   OCR SCAN SMLUV (Cloud Vision API)
+═══════════════════════════════════════════════════ */
+function showScanButtonIfNative() {
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const btn = document.getElementById('scanContractBtn');
+  if (btn) btn.style.display = isNative ? 'flex' : 'none';
+}
+
+async function imageUriToBase64(uri) {
+  // Načte URI (file://) a vrátí čistý base64 (bez data: prefixu)
+  const resp = await fetch(uri);
+  const blob = await resp.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result;
+      const idx = result.indexOf(',');
+      resolve(idx >= 0 ? result.slice(idx + 1) : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function scanContractWithOCR() {
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if (!isNative) { alert('Scan funguje jen v mobilní aplikaci.'); return; }
+  const btn = document.getElementById('scanContractBtn');
+  const orig = btn ? btn.innerHTML : '';
+  try {
+    if (btn) btn.innerHTML = '<span>📸 Otevírám kameru…</span>';
+
+    // 1. Otevřít Document Scanner
+    const DS = window.Capacitor.Plugins.DocumentScanner;
+    if (!DS) { alert('Document Scanner plugin není dostupný.'); return; }
+    const scanResult = await DS.scanDocument({
+      pageLimit: 1,
+      resultFormats: ['JPEG'],
+      // další options podle pluginu
+    });
+
+    const uris = (scanResult && (scanResult.scannedImages || scanResult.imageURIs || scanResult.images)) || [];
+    if (!uris || !uris.length) { btn && (btn.innerHTML = orig); return; }
+    const firstUri = uris[0];
+
+    if (btn) btn.innerHTML = '<span>🤖 Rozpoznávám text…</span>';
+
+    // 2. Konverze na base64
+    const base64 = await imageUriToBase64(firstUri);
+
+    // 3. Zavolat Cloud Function
+    if (!window._fbUser) throw new Error('Nejste přihlášen.');
+    const idToken = await window._fbUser.getIdToken();
+    const resp = await fetch('https://us-central1-banbosh-smlouvy.cloudfunctions.net/ocrSmlouva', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + idToken,
+      },
+      body: JSON.stringify({ imageBase64: base64 })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || ('HTTP ' + resp.status));
+    }
+    const data = await resp.json();
+    const parsed = data.parsed || {};
+
+    // 4. Předvyplnit formulář
+    if (parsed.name && document.getElementById('fName')) document.getElementById('fName').value = parsed.name;
+    if (parsed.amount != null && document.getElementById('fPrice')) document.getElementById('fPrice').value = parsed.amount;
+    if (parsed.date && document.getElementById('fRenewal')) document.getElementById('fRenewal').value = parsed.date;
+    if (parsed.period && document.getElementById('fPeriod')) document.getElementById('fPeriod').value = parsed.period;
+
+    if (btn) btn.innerHTML = orig;
+    try { const H = window.Capacitor.Plugins.Haptics; if (H && H.impact) await H.impact({ style: 'MEDIUM' }); } catch(_) {}
+
+    // Zobrazit toast s počtem rozpoznaných polí
+    const filled = ['name','amount','date','period'].filter(k => parsed[k]).length;
+    alert(`✅ Rozpoznáno ${filled} polí!\n\nText:\n${(data.text||'').slice(0,200)}…`);
+  } catch (e) {
+    console.error('OCR scan error:', e);
+    if (btn) btn.innerHTML = orig;
+    alert('Scan selhal: ' + (e.message || e));
+  }
 }
 
 async function testNotification() {
