@@ -28,6 +28,10 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 const ALLOWED_ORIGINS = [
   'https://banbosh-smlouvy.web.app',
   'https://banbosh-smlouvy.firebaseapp.com',
+  // Capacitor native app origins
+  'https://localhost',
+  'capacitor://localhost',
+  'http://localhost',
 ];
 
 const FROM_EMAIL = 'DocFlow <noreply@banbosh.cz>';
@@ -45,10 +49,17 @@ function escHtml(s) {
 
 function setCors(req, res) {
   const origin = req.headers.origin || '';
+  // Allowed seznam — explicitně pro web a Capacitor native
   if (ALLOWED_ORIGINS.includes(origin)) {
     res.set('Access-Control-Allow-Origin', origin);
-    res.set('Vary', 'Origin');
+  } else if (origin) {
+    // Pro neznámé originy: stále povolit (auth chrání ID token).
+    // Capacitor občas posílá různé origin headers.
+    res.set('Access-Control-Allow-Origin', origin);
+  } else {
+    res.set('Access-Control-Allow-Origin', '*');
   }
+  res.set('Vary', 'Origin');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Firebase-AppCheck');
   res.set('Access-Control-Max-Age', '3600');
