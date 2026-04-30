@@ -111,6 +111,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
 /* ── TOPBAR ── */
 .topbar{position:sticky;top:0;z-index:50;background:rgba(var(--bg-rgb,12,14,22),.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding-top:env(safe-area-inset-top,0);padding-left:20px;padding-right:20px;min-height:calc(60px + env(safe-area-inset-top,0));box-sizing:border-box;display:flex;align-items:center;gap:12px;}
 .login-screen{padding-top:calc(24px + env(safe-area-inset-top,0)) !important;padding-bottom:calc(24px + env(safe-area-inset-bottom,0)) !important;}
+.spin{animation:spin 1s linear infinite;}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 .fab{bottom:calc(20px + env(safe-area-inset-bottom,0)) !important;}
 .main{padding-bottom:calc(120px + env(safe-area-inset-bottom,0)) !important;}
 [data-theme="light"] .topbar{background:rgba(244,245,251,.92);}
@@ -3605,7 +3607,7 @@ async function scanContractWithOCR() {
   const btn = document.getElementById('scanContractBtn');
   const orig = btn ? btn.innerHTML : '';
   try {
-    if (btn) btn.innerHTML = '<span>📸 Otevírám kameru…</span>';
+    if (btn) btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Otevírám kameru…</span>';
 
     // 1. Otevřít Document Scanner
     const DS = window.Capacitor.Plugins.DocumentScanner;
@@ -3644,7 +3646,7 @@ async function scanContractWithOCR() {
     const firstUri = uris[0];
     console.log('First URI:', firstUri);
 
-    if (btn) btn.innerHTML = '<span>🤖 Rozpoznávám text…</span>';
+    if (btn) btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg><span>Rozpoznávám text…</span>';
 
     // 2. Konverze na base64
     const base64 = await imageUriToBase64(firstUri);
@@ -3678,7 +3680,7 @@ async function scanContractWithOCR() {
 
     // Zobrazit toast s počtem rozpoznaných polí
     const filled = ['name','amount','date','period'].filter(k => parsed[k]).length;
-    alert(`✅ Rozpoznáno ${filled} polí!\n\nText:\n${(data.text||'').slice(0,200)}…`);
+    alert('Rozpoznáno ' + filled + ' polí.\n\nNáhled textu:\n' + (data.text||'').slice(0, 200) + '…');
   } catch (e) {
     console.error('OCR scan error:', e);
     if (btn) btn.innerHTML = orig;
