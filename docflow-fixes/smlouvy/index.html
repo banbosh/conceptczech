@@ -3553,19 +3553,24 @@ function showScanButtonIfNative() {
 }
 
 async function imageUriToBase64(uri) {
-  // Capacitor WebView nemůže fetch-ovat file:// URIs.
-  // Použijeme Filesystem plugin nebo convertFileSrc.
+  console.log('imageUriToBase64 input:', uri);
+  console.log('Available plugins:', Object.keys((window.Capacitor && window.Capacitor.Plugins) || {}));
+
+  const errors = [];
 
   // 1) Zkusit Filesystem plugin (nejspolehlivější)
-  try {
-    const FS = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
-    if (FS && FS.readFile) {
+  const FS = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+  if (FS && FS.readFile) {
+    try {
       const result = await FS.readFile({ path: uri });
-      // result.data je base64 string
+      console.log('Filesystem.readFile OK, base64 length:', (result.data || '').length);
       return result.data;
+    } catch (e) {
+      console.warn('Filesystem.readFile failed:', e);
+      errors.push('Filesystem: ' + (e.message || JSON.stringify(e)));
     }
-  } catch (e) {
-    console.warn('Filesystem.readFile failed, fallback to convertFileSrc:', e);
+  } else {
+    errors.push('Filesystem plugin not installed (run: npm install @capacitor/filesystem)');
   }
 
   // 2) Fallback: convertFileSrc + fetch
@@ -3573,7 +3578,9 @@ async function imageUriToBase64(uri) {
     const accessible = window.Capacitor && window.Capacitor.convertFileSrc
       ? window.Capacitor.convertFileSrc(uri)
       : uri;
+    console.log('Trying fetch with:', accessible);
     const resp = await fetch(accessible);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -3586,8 +3593,10 @@ async function imageUriToBase64(uri) {
       reader.readAsDataURL(blob);
     });
   } catch (e) {
-    throw new Error('Cannot read image file: ' + (e.message || e));
+    errors.push('fetch: ' + (e.message || e));
   }
+
+  throw new Error('Nemohu přečíst obrázek:\n' + errors.join('\n'));
 }
 
 async function scanContractWithOCR() {
