@@ -441,7 +441,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
   transform:translateY(20px);transition:transform .3s;
 }
 #walkthroughOverlay.open .wt-card{transform:translateY(0);}
-.wt-icon{font-size:52px;margin-bottom:16px;display:block;}
+.wt-icon{width:84px;height:84px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, var(--accent-dim), rgba(108,99,255,.05));border:1px solid rgba(108,99,255,.25);border-radius:22px;color:var(--accent);}
+.wt-icon svg{width:40px;height:40px;}
 .wt-title{font-size:20px;font-weight:800;color:var(--text);margin-bottom:10px;}
 .wt-text{font-size:14px;color:var(--muted);line-height:1.65;margin-bottom:28px;}
 .wt-dots{display:flex;gap:7px;justify-content:center;margin-bottom:24px;}
@@ -456,6 +457,23 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sa
 </style>
 </head>
 <body>
+
+<!-- ANIMATED SPLASH OVERLAY (zmizí jakmile se apka načte) -->
+<div id="appSplash" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:'Inter',-apple-system,sans-serif;background:linear-gradient(135deg,#4f46e5,#6c63ff,#8b85ff,#6c63ff,#4f46e5);background-size:400% 400%;animation:splashGradient 4s ease infinite;transition:opacity .35s ease;">
+  <div style="width:104px;height:104px;background:rgba(255,255,255,.12);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.25);border-radius:28px;display:flex;align-items:center;justify-content:center;margin-bottom:24px;box-shadow:0 8px 32px rgba(0,0,0,.25);">
+    <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  </div>
+  <div style="font-size:28px;font-weight:800;letter-spacing:-.5px;">Doc<span style="opacity:.85">Flow</span></div>
+  <div style="font-size:12px;font-weight:500;opacity:.75;letter-spacing:2.5px;text-transform:uppercase;margin-top:8px;">BANBOSH Studio</div>
+  <div style="margin-top:36px;width:48px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden;">
+    <div style="width:30%;height:100%;background:#fff;border-radius:2px;animation:splashBar 1.2s ease-in-out infinite;"></div>
+  </div>
+</div>
+<style>
+@keyframes splashGradient { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
+@keyframes splashBar { 0%{transform:translateX(-200%);} 100%{transform:translateX(400%);} }
+#appSplash.hidden { opacity:0; pointer-events:none; }
+</style>
 
 <!-- LOGIN -->
 <div id="loginScreen" class="login-screen">
@@ -2360,12 +2378,18 @@ function rateDontAsk() {
 ═══════════════════════════════════════════════════ */
 function wtSteps() {
   const l = t();
+  // SVG ikony (Lucide style) místo emoji — vypadá native a profesionálně
+  const ICON_DOC = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+  const ICON_PLUS = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+  const ICON_CHART = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+  const ICON_BELL = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+  const ICON_CHECK = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
   return [
-    { icon:'📄', title: l.wt1Title||'Welcome to DocFlow',    text: l.wt1Text||'Track all your subscriptions and contracts in one place. Never miss a renewal again.' },
-    { icon:'➕', title: l.wt2Title||'Add a Contract',         text: l.wt2Text||'Tap the + button to add any subscription or contract — Netflix, rent, insurance, anything.' },
-    { icon:'📊', title: l.wt3Title||'Dashboard Overview',     text: l.wt3Text||'See your monthly and yearly spending at a glance. Get warnings before contracts expire.' },
-    { icon:'🔔', title: l.wt4Title||'Renewal Alerts',         text: l.wt4Text||'Enable notifications to get reminded 7 days before any contract renews.' },
-    { icon:'🚀', title: l.wt5Title||'You\'re all set!',       text: l.wt5Text||'Start adding your contracts. DocFlow keeps everything organized and under control.' },
+    { icon: ICON_DOC,   title: l.wt1Title||'Welcome to DocFlow',    text: l.wt1Text||'Track all your subscriptions and contracts in one place. Never miss a renewal again.' },
+    { icon: ICON_PLUS,  title: l.wt2Title||'Add a Contract',         text: l.wt2Text||'Tap the + button to add any subscription or contract — Netflix, rent, insurance, anything.' },
+    { icon: ICON_CHART, title: l.wt3Title||'Dashboard Overview',     text: l.wt3Text||'See your monthly and yearly spending at a glance. Get warnings before contracts expire.' },
+    { icon: ICON_BELL,  title: l.wt4Title||'Renewal Alerts',         text: l.wt4Text||'Enable notifications to get reminded 7 days before any contract renews.' },
+    { icon: ICON_CHECK, title: l.wt5Title||'You\'re all set!',       text: l.wt5Text||'Start adding your contracts. DocFlow keeps everything organized and under control.' },
   ];
 }
 
@@ -2374,7 +2398,7 @@ let wtStep = 0;
 function wtShow(step) {
   const steps = wtSteps();
   const s = steps[step];
-  document.getElementById('wtIcon').textContent = s.icon;
+  document.getElementById('wtIcon').innerHTML = s.icon;
   document.getElementById('wtTitle').textContent = s.title;
   document.getElementById('wtText').textContent = s.text;
   const l = t();
@@ -3735,7 +3759,7 @@ async function testNotification() {
         notifications: [{
           id: 99999,
           title: 'DocFlow — TEST',
-          body: 'Pokud vidíte tuto zprávu, notifikace fungují! 🎉',
+          body: 'Pokud vidíte tuto zprávu, notifikace fungují.',
           largeBody: 'Toto je test, jak budou vypadat skutečné notifikace o obnovování smluv. Vibrace, zvuk a fialové LED jsou aktivní.',
           channelId: 'renewals',
           schedule: { at: at, allowWhileIdle: true },
@@ -3762,7 +3786,7 @@ async function testNotification() {
     if (perm !== 'granted') { alert('Notifikace zamítnuty.'); return; }
     setTimeout(() => {
       new Notification('DocFlow — TEST', {
-        body: 'Pokud vidíte tuto zprávu, notifikace fungují! 🎉',
+        body: 'Pokud vidíte tuto zprávu, notifikace fungují.',
         icon: 'icon-512.png',
       });
     }, 5000);
@@ -4361,6 +4385,16 @@ try {
     setTimeout(() => SP.hide({ fadeOutDuration: 250 }).catch(()=>{}), 250);
   }
 } catch(_) {}
+
+// Skrýt animovaný HTML splash overlay (fialový gradient).
+// Necháme ho zobrazený minimálně 800 ms, aby uživatel viděl branding.
+setTimeout(() => {
+  const sp = document.getElementById('appSplash');
+  if (sp) {
+    sp.classList.add('hidden');
+    setTimeout(() => sp.style.display = 'none', 400);
+  }
+}, 800);
 </script>
 </body>
 </html>
