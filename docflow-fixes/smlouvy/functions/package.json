@@ -1,13 +1,14 @@
 {
   "name": "docflow-functions",
-  "description": "DocFlow Cloud Functions (familyInvite)",
+  "description": "DocFlow Cloud Functions (familyInvite, ocrSmlouva)",
   "engines": {
     "node": "20"
   },
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.0"
+    "firebase-functions": "^6.0.0",
+    "@google-cloud/vision": "^4.3.0"
   },
   "private": true
 }

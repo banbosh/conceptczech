@@ -223,3 +223,127 @@ exports.familyInvite = onRequest(
     }
   }
 );
+
+
+// ════════════════════════════════════════════════════════════════════
+// ocrSmlouva — OCR scan smluv přes Google Cloud Vision API
+// ════════════════════════════════════════════════════════════════════
+
+const { ImageAnnotatorClient } = require('@google-cloud/vision');
+let _visionClient = null;
+function getVisionClient() {
+  if (!_visionClient) _visionClient = new ImageAnnotatorClient();
+  return _visionClient;
+}
+
+/**
+ * Parse extracted text → vytáhnout název, datum, částku, frekvenci
+ */
+function parseContractText(text) {
+  if (!text) return { name: '', date: '', amount: null, currency: 'CZK', period: null };
+
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const fullText = text.toLowerCase();
+
+  // === DATUM === (DD.MM.YYYY, DD/MM/YYYY, YYYY-MM-DD, DD. MM. YYYY)
+  const dateMatch = text.match(/(\b\d{1,2})[.\/\-]\s?(\d{1,2})[.\/\-]\s?(\d{2,4})\b/) ||
+                    text.match(/\b(\d{4})[.\/\-](\d{1,2})[.\/\-](\d{1,2})\b/);
+  let dateIso = '';
+  if (dateMatch) {
+    let d, m, y;
+    if (dateMatch[1].length === 4) { y = dateMatch[1]; m = dateMatch[2]; d = dateMatch[3]; }
+    else { d = dateMatch[1]; m = dateMatch[2]; y = dateMatch[3]; if (y.length === 2) y = '20' + y; }
+    d = String(d).padStart(2, '0'); m = String(m).padStart(2, '0');
+    dateIso = `${y}-${m}-${d}`;
+  }
+
+  // === ČÁSTKA === hledáme největší číslo s kontextem peněz
+  const amounts = [];
+  const amountRe = /(?:^|[\s])(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{1,2})?)\s*(kč|czk|€|eur|usd|\$)\b/gi;
+  let mm;
+  while ((mm = amountRe.exec(text)) !== null) {
+    const num = parseFloat(mm[1].replace(/\s/g, '').replace(',', '.'));
+    if (!isNaN(num)) amounts.push({ value: num, currency: mm[2].toUpperCase() === 'KČ' ? 'CZK' : mm[2].toUpperCase() });
+  }
+  // Vyber největší (typicky cena)
+  amounts.sort((a, b) => b.value - a.value);
+  const amount = amounts[0] ? amounts[0].value : null;
+  const currency = amounts[0] ? amounts[0].currency : 'CZK';
+
+  // === NÁZEV === první neprázdný řádek (obvykle title)
+  let name = '';
+  for (const line of lines.slice(0, 6)) {
+    if (line.length >= 3 && line.length <= 80 && !/^\d+$/.test(line)) {
+      name = line; break;
+    }
+  }
+
+  // === FREKVENCE ===
+  let period = null;
+  if (/měsíčn|monthly|měsíc/i.test(fullText)) period = 'monthly';
+  else if (/ročn|yearly|annual|rok/i.test(fullText)) period = 'yearly';
+  else if (/čtvrtletn|quarterly/i.test(fullText)) period = 'quarterly';
+
+  return { name, date: dateIso, amount, currency, period };
+}
+
+exports.ocrSmlouva = onRequest(
+  {
+    region: 'us-central1',
+    cors: false,
+    maxInstances: 10,
+    timeoutSeconds: 30,
+    memory: '512MiB',
+  },
+  async (req, res) => {
+    setCors(req, res);
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error: 'method-not-allowed' }); return; }
+
+    // 1. Auth
+    const user = await verifyUser(req);
+    if (!user) { res.status(401).json({ error: 'unauthenticated' }); return; }
+
+    // 2. Rate limit (sdíleno s familyInvite — 10/den/uživatel)
+    const rl = await checkRateLimit(user.uid);
+    if (!rl.ok) {
+      res.set('Retry-After', String(rl.retryAfterSec));
+      res.status(429).json({ error: 'rate-limited', retryAfterSec: rl.retryAfterSec });
+      return;
+    }
+
+    // 3. Vstupní obrázek (base64)
+    const { imageBase64 } = req.body || {};
+    if (typeof imageBase64 !== 'string' || imageBase64.length < 100) {
+      res.status(400).json({ error: 'invalid-image' });
+      return;
+    }
+    if (imageBase64.length > 8 * 1024 * 1024) {
+      res.status(413).json({ error: 'image-too-large' });
+      return;
+    }
+
+    // 4. Volání Cloud Vision API
+    try {
+      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const visionClient = getVisionClient();
+      const [result] = await visionClient.textDetection({
+        image: { content: cleanBase64 },
+        imageContext: { languageHints: ['cs', 'en'] }
+      });
+      const fullText = (result.fullTextAnnotation && result.fullTextAnnotation.text) || '';
+
+      const parsed = parseContractText(fullText);
+
+      logger.info('OCR done', { uid: user.uid, textLen: fullText.length, parsed });
+      res.status(200).json({
+        ok: true,
+        text: fullText,
+        parsed,
+      });
+    } catch (e) {
+      logger.error('Vision API error', { error: e.message });
+      res.status(500).json({ error: 'vision-failed', detail: e.message });
+    }
+  }
+);
