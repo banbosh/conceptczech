@@ -1,0 +1,44 @@
+{
+  "packageId": "cz.banbosh.docflow",
+  "host": "banbosh-smlouvy.web.app",
+  "name": "DocFlow",
+  "launcherName": "DocFlow",
+  "display": "standalone",
+  "themeColor": "#6c63ff",
+  "navigationColor": "#6c63ff",
+  "navigationColorDark": "#1c1c1e",
+  "navigationDividerColor": "#6c63ff",
+  "backgroundColor": "#0c0e16",
+  "enableNotifications": true,
+  "startUrl": "/index.html",
+  "iconUrl": "https://banbosh-smlouvy.web.app/icon-512.png",
+  "maskableIconUrl": "https://banbosh-smlouvy.web.app/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./docflow-release.keystore",
+    "alias": "docflow-key"
+  },
+  "appVersion": "1.0.1",
+  "appVersionCode": 2,
+  "orientation": "portrait",
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://banbosh-smlouvy.web.app/manifest.json",
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "enableSiteSettingsShortcut": true,
+  "minSdkVersion": 23,
+  "targetSdkVersion": 35,
+  "compileSdkVersion": 35,
+  "features": {
+    "locationDelegation": { "enabled": false },
+    "playBilling": { "enabled": false }
+  },
+  "shortcuts": [
+    {
+      "name": "Přidat smlouvu",
+      "short_name": "Přidat",
+      "url": "/index.html?action=add",
+      "icons": [{ "src": "https://banbosh-smlouvy.web.app/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
