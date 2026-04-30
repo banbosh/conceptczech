@@ -3553,19 +3553,41 @@ function showScanButtonIfNative() {
 }
 
 async function imageUriToBase64(uri) {
-  // Načte URI (file://) a vrátí čistý base64 (bez data: prefixu)
-  const resp = await fetch(uri);
-  const blob = await resp.blob();
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result;
-      const idx = result.indexOf(',');
-      resolve(idx >= 0 ? result.slice(idx + 1) : result);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  // Capacitor WebView nemůže fetch-ovat file:// URIs.
+  // Použijeme Filesystem plugin nebo convertFileSrc.
+
+  // 1) Zkusit Filesystem plugin (nejspolehlivější)
+  try {
+    const FS = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+    if (FS && FS.readFile) {
+      const result = await FS.readFile({ path: uri });
+      // result.data je base64 string
+      return result.data;
+    }
+  } catch (e) {
+    console.warn('Filesystem.readFile failed, fallback to convertFileSrc:', e);
+  }
+
+  // 2) Fallback: convertFileSrc + fetch
+  try {
+    const accessible = window.Capacitor && window.Capacitor.convertFileSrc
+      ? window.Capacitor.convertFileSrc(uri)
+      : uri;
+    const resp = await fetch(accessible);
+    const blob = await resp.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        const idx = result.indexOf(',');
+        resolve(idx >= 0 ? result.slice(idx + 1) : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    throw new Error('Cannot read image file: ' + (e.message || e));
+  }
 }
 
 async function scanContractWithOCR() {
